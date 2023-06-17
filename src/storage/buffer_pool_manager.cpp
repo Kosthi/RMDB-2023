@@ -162,19 +162,18 @@ bool BufferPoolManager::flush_page(PageId page_id) {
     // 2. 无论P是否为脏都将其写回磁盘。
     // 3. 更新P的is_dirty_
 
-    latch_.lock();
+    std::scoped_lock lock{latch_};
     if (!page_table_.count(page_id)) {
-        latch_.unlock();
         return false;
     }
 
     // 待加强
     frame_id_t frameId = page_table_[page_id];
     if (pages_[frameId].get_page_id().fd == page_id.fd && pages_[frameId].get_page_id().page_no != INVALID_PAGE_ID) {
-        disk_manager_->write_page(page_id.fd, pages_[frameId].get_page_id().page_no, pages_[frameId].get_data(), PAGE_SIZE);
+        disk_manager_->write_page(page_id.fd, pages_[frameId].get_page_id().page_no, pages_[frameId].get_data(),
+                                  PAGE_SIZE);
         pages_[frameId].is_dirty_ = false;
     }
-    latch_.unlock();
     return true;
 }
 
