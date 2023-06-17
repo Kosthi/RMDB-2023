@@ -37,7 +37,7 @@ void DiskManager::write_page(int fd, page_id_t page_no, const char *offset, int 
 
     // 文件指针移动到要写入的位置
     if (lseek(fd, off_bytes, SEEK_SET) == -1) {
-        throw InternalError("DiskManager::write_page: Error seeking to page");
+        throw InternalError("DiskManager::write_page: Error writing page");
     }
 
     // 写入数据offset
@@ -139,12 +139,12 @@ void DiskManager::create_file(const std::string &path) {
     // 注意不能重复创建相同文件
 
     if (is_file(path)) {
-        throw InternalError("DiskManager::create_file: File already exists");
+        throw FileExistsError("DiskManager::create_file: File already exists");
     }
 
     int fd = open(path.c_str(), O_CREAT | O_EXCL);
     if (fd == -1) {
-        throw InternalError("DiskManager::create_file: Error creating file");
+        throw FileNotOpenError(fd);
     }
     close(fd);
 }
@@ -158,6 +158,12 @@ void DiskManager::destroy_file(const std::string &path) {
     // 调用unlink()函数
     // 注意不能删除未关闭的文件
 
+    if (path2fd_.count(path)) {
+        throw FileNotClosedError(path);
+    }
+    if (!is_file(path)) {
+        throw FileNotFoundError(path);
+    }
     int result = unlink(path.c_str());
     if (result == -1) {
         throw std::runtime_error("DiskManager::destroy_file: Error deleting file");
@@ -175,12 +181,16 @@ int DiskManager::open_file(const std::string &path) {
     // 调用open()函数，使用O_RDWR模式
     // 注意不能重复打开相同文件，并且需要更新文件打开列表
 
+    if (!is_file(path)) {
+        throw FileNotFoundError(path);
+    }
     if (path2fd_.count(path)) {
-        throw InternalError("DiskManager::open_file: File is already open");
+        return -1;
+        // throw FileExistsError("DiskManager::open_file: File is already open");
     }
     int fd = open(path.c_str(), O_RDWR);
     if (fd == -1) {
-        throw InternalError("DiskManager::open_file: Error open file");
+        throw FileNotFoundError(path);
     }
     path2fd_[path] = fd;
     fd2path_[fd] = path;
