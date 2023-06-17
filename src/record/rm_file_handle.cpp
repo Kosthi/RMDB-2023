@@ -89,8 +89,8 @@ void RmFileHandle::delete_record(const Rid& rid, Context* context) {
     }
     // 1 变 0
     Bitmap::reset(pageHandle.bitmap, rid.slot_no);
-    pageHandle.page_hdr->num_records--;
-    if (pageHandle.page_hdr->num_records == file_hdr_.num_records_per_page) {
+    // pageHandle.page_hdr->num_records--;
+    if (pageHandle.page_hdr->num_records-- == file_hdr_.num_records_per_page) {
         release_page_handle(pageHandle);
     }
 }
