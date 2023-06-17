@@ -71,7 +71,7 @@ void LRUReplacer::unpin(frame_id_t frame_id) {
     //  选择一个frame取消固定
 
     std::scoped_lock lock(latch_);
-    if (!std::count(LRUlist_.begin(), LRUlist_.end(), frame_id)) {
+    if (!LRUhash_.count(frame_id)) {
         LRUlist_.push_front(frame_id);
         LRUhash_[frame_id] = LRUlist_.begin();
     }
