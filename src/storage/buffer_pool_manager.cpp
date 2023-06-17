@@ -234,21 +234,21 @@ bool BufferPoolManager::delete_page(PageId page_id) {
 void BufferPoolManager::flush_all_pages(int fd) {
     std::scoped_lock lock{latch_};
 
-    for (size_t i = 0; i < pool_size_; i++) {
-        Page *page = &pages_[i];
-        if (page->get_page_id().fd == fd && page->get_page_id().page_no != INVALID_PAGE_ID) {
-            disk_manager_->write_page(page->get_page_id().fd, page->get_page_id().page_no, page->get_data(), PAGE_SIZE);
-            page->is_dirty_ = false;
-        }
-    }
-
-//    for (auto& entry : page_table_) {
-//        PageId pageId = entry.first;
-//        if (pageId.fd == fd && pageId.page_no != INVALID_PAGE_ID) {
-//            disk_manager_->write_page(pageId.fd, pageId.page_no, pages_[entry.second].get_data(), PAGE_SIZE);
-//            pages_[entry.second].is_dirty_ = false;
-//            // 避免死锁
-//            // flush_page(pageId);
+//    for (size_t i = 0; i < pool_size_; i++) {
+//        Page *page = &pages_[i];
+//        if (page->get_page_id().fd == fd && page->get_page_id().page_no != INVALID_PAGE_ID) {
+//            disk_manager_->write_page(page->get_page_id().fd, page->get_page_id().page_no, page->get_data(), PAGE_SIZE);
+//            page->is_dirty_ = false;
 //        }
 //    }
+
+    for (auto& entry : page_table_) {
+        PageId pageId = entry.first;
+        if (pageId.fd == fd && pageId.page_no != INVALID_PAGE_ID) {
+            disk_manager_->write_page(pageId.fd, pageId.page_no, pages_[entry.second].get_data(), PAGE_SIZE);
+            pages_[entry.second].is_dirty_ = false;
+            // 避免死锁
+            // flush_page(pageId);
+        }
+    }
 }
