@@ -88,9 +88,9 @@ Page* BufferPoolManager::fetch_page(PageId page_id) {
 
     frame_id_t frameId = 0;
     if (find_victim_page(&frameId)) {
-        if (pages_[frameId].is_dirty_) {
+        // if (pages_[frameId].is_dirty_) {
             update_page(&pages_[frameId], page_id, frameId);
-        }
+        // }
     }
     else {
         return nullptr;
