@@ -42,6 +42,7 @@ void RmScan::next() {
         rid_.page_no++;
         rid_.slot_no = -1;
     }
+    rid_.page_no = RM_NO_PAGE;
 }
 
 /**
@@ -49,7 +50,8 @@ void RmScan::next() {
  */
 bool RmScan::is_end() const {
     // Todo: 修改返回值
-    return rid_.page_no >= file_handle_->file_hdr_.num_pages;
+    return rid_.page_no == RM_NO_PAGE;
+    // return rid_.page_no >= file_handle_->file_hdr_.num_pages;
 }
 
 /**
