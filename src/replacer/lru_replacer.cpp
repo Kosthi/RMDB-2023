@@ -29,18 +29,24 @@ bool LRUReplacer::victim(frame_id_t* frame_id) {
     //  选择合适的frame指定为淘汰页面,赋值给*frame_id
 
     if (LRUlist_.empty()) {
+        frame_id = nullptr;
         return false;
     }
 
-    for (auto it = LRUlist_.rbegin(); it != LRUlist_.rend(); ++it) {
-        if (LRUhash_.count(*it)) {
-            *frame_id = *it;
-            LRUlist_.erase(std::next(it).base());
-            LRUhash_.erase(*frame_id);
-            return true;
-        }
-    }
-    return false;
+    *frame_id = LRUlist_.back();
+    LRUlist_.pop_back();
+    LRUhash_.erase(*frame_id);
+    return true;
+
+//    for (auto it = LRUlist_.rbegin(); it != LRUlist_.rend(); ++it) {
+//        if (LRUhash_.count(*it)) {
+//            *frame_id = *it;
+//            LRUlist_.erase(std::next(it).base());
+//            LRUhash_.erase(*frame_id);
+//            return true;
+//        }
+//    }
+//    return false;
 }
 
 /**
@@ -57,7 +63,7 @@ void LRUReplacer::pin(frame_id_t frame_id) {
     auto iter = LRUhash_.find(frame_id);
     if (iter != LRUhash_.end()) {
         LRUlist_.erase(iter->second);
-        LRUhash_.erase(iter);
+        LRUhash_.erase(iter->first);
     }
 }
 
@@ -71,6 +77,12 @@ void LRUReplacer::unpin(frame_id_t frame_id) {
     //  选择一个frame取消固定
 
     std::scoped_lock lock(latch_);
+
+    // LRUList 空间有限
+    if (LRUlist_.size() >= max_size_) {
+        return;
+    }
+
     if (!LRUhash_.count(frame_id)) {
         LRUlist_.push_front(frame_id);
         LRUhash_[frame_id] = LRUlist_.begin();
