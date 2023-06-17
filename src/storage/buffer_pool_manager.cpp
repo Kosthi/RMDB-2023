@@ -76,15 +76,17 @@ Page* BufferPoolManager::fetch_page(PageId page_id) {
     // 4.     固定目标页，更新pin_count_
     // 5.     返回目标页
 
+    std::scoped_lock lock{latch_};
+
     if (page_table_.count(page_id)) {
         frame_id_t frameId = page_table_[page_id];
         pages_[frameId].pin_count_++;
-        // 固定 pin
+        // 固定 pin 页面不能被淘汰
         replacer_->pin(frameId);
         return &pages_[frameId];
     }
 
-    frame_id_t frameId;
+    frame_id_t frameId = 0;
     if (find_victim_page(&frameId)) {
         if (pages_[frameId].is_dirty_) {
             update_page(&pages_[frameId], page_id, frameId);
@@ -94,8 +96,10 @@ Page* BufferPoolManager::fetch_page(PageId page_id) {
         return nullptr;
     }
 
+    // 读取目标页数据
     char* offset = pages_[frameId].get_data();
     disk_manager_->read_page(page_id.fd, page_id.page_no, offset, PAGE_SIZE);
+
     // 固定目标页
     replacer_->pin(frameId);
     pages_[frameId].pin_count_ = 1;
@@ -119,29 +123,29 @@ bool BufferPoolManager::unpin_page(PageId page_id, bool is_dirty) {
     // 2.2.1 若自减后等于0，则调用replacer_的Unpin
     // 3 根据参数is_dirty，更改P的is_dirty_
 
-    latch_.lock();
+    std::scoped_lock lock{latch_};
+
     if (page_table_.count(page_id) == 0) {
-        latch_.unlock();
         return false;
     }
 
     frame_id_t frameId = page_table_[page_id];
     int& pin_count = pages_[frameId].pin_count_;
     if (!pin_count) {
-        latch_.unlock();
         return false;
     }
     else if (pin_count > 0) {
         pin_count--;
     }
     if (!pin_count) {
-        page_table_.erase(page_id);
-        free_list_.push_front(frameId);
-        disk_manager_->deallocate_page(page_id.page_no);
+        // 如果不擦除，一直调用 unpin 不就会一直 unpin ?
+        // page_table_.erase(page_id);
+        // 只有 delete page 才需要放回链表中
+        // free_list_.push_front(frameId);
+        // 固定值为0 无线程使用 可以淘汰，加入 LRU 淘汰队列
         replacer_->unpin(frameId);
     }
     pages_[frameId].is_dirty_ = is_dirty;
-    latch_.unlock();
     return true;
 }
 
@@ -186,6 +190,7 @@ Page* BufferPoolManager::new_page(PageId* page_id) {
     // 4.   固定frame，更新pin_count_
     // 5.   返回获得的page
 
+    std::scoped_lock lock{latch_};
     frame_id_t frameId;
     if (find_victim_page(&frameId)) {
         page_id->page_no = disk_manager_->allocate_page(page_id->fd);
@@ -207,6 +212,7 @@ bool BufferPoolManager::delete_page(PageId page_id) {
     // 2.   若目标页的pin_count不为0，则返回false
     // 3.   将目标页数据写回磁盘，从页表中删除目标页，重置其元数据，将其加入free_list_，返回true
 
+    std::scoped_lock lock{latch_};
     if (!page_table_.count(page_id)) {
         return true;
     }
@@ -227,10 +233,14 @@ bool BufferPoolManager::delete_page(PageId page_id) {
  * @param {int} fd 文件句柄
  */
 void BufferPoolManager::flush_all_pages(int fd) {
+    std::scoped_lock lock{latch_};
     for (auto& entry : page_table_) {
         PageId pageId = entry.first;
         if (pageId.fd == fd && pageId.page_no != INVALID_PAGE_ID) {
-            flush_page(pageId);
+            disk_manager_->write_page(pageId.fd, pageId.page_no, pages_[entry.second].get_data(), PAGE_SIZE);
+            pages_[entry.second].is_dirty_ = false;
+            // 避免死锁
+            // flush_page(pageId);
         }
     }
 }
