@@ -147,6 +147,9 @@ bool BufferPoolManager::unpin_page(PageId page_id, bool is_dirty) {
         replacer_->unpin(frameId);
     }
     // 根据参数is_dirty，更改P的is_dirty_
+    // When is_dirty = true，无论 is_dirty 是否为脏，都要更改为脏页
+    // When is_dirty = false，保持页面的原有状态
+    // 如果页面原来为脏页，而参数为false，则会被修改为非脏页，导致无法过测试
     if (is_dirty) {
         pages_[frameId].is_dirty_ = is_dirty;
     }
