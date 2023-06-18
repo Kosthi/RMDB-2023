@@ -57,6 +57,7 @@ void BufferPoolManager::update_page(Page *page, PageId new_page_id, frame_id_t n
 
     page->reset_memory();
     page->id_ = new_page_id;
+    page->pin_count_ = 1;
 }
 
 /**
@@ -145,7 +146,10 @@ bool BufferPoolManager::unpin_page(PageId page_id, bool is_dirty) {
         // 固定值为0 无线程使用 可以淘汰，加入 LRU 淘汰队列
         replacer_->unpin(frameId);
     }
-    pages_[frameId].is_dirty_ = is_dirty;
+    // 根据参数is_dirty，更改P的is_dirty_
+    if (is_dirty) {
+        pages_[frameId].is_dirty_ = is_dirty;
+    }
     return true;
 }
 
@@ -222,6 +226,7 @@ bool BufferPoolManager::delete_page(PageId page_id) {
     disk_manager_->write_page(page_id.fd, page_id.page_no, pages_[frameId].get_data(), PAGE_SIZE);
     page_table_.erase(page_id);
     pages_[frameId].reset_memory();
+    pages_[frameId].is_dirty_ = false;
     free_list_.push_back(frameId);
     // disk_manager_->deallocate_page(page_id.page_no);
     return true;
@@ -232,15 +237,8 @@ bool BufferPoolManager::delete_page(PageId page_id) {
  * @param {int} fd 文件句柄
  */
 void BufferPoolManager::flush_all_pages(int fd) {
-    std::scoped_lock lock{latch_};
 
-//    for (size_t i = 0; i < pool_size_; i++) {
-//        Page *page = &pages_[i];
-//        if (page->get_page_id().fd == fd && page->get_page_id().page_no != INVALID_PAGE_ID) {
-//            disk_manager_->write_page(page->get_page_id().fd, page->get_page_id().page_no, page->get_data(), PAGE_SIZE);
-//            page->is_dirty_ = false;
-//        }
-//    }
+    std::scoped_lock lock{latch_};
 
     for (auto& entry : page_table_) {
         PageId pageId = entry.first;
