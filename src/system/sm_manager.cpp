@@ -113,11 +113,6 @@ void SmManager::open_db(const std::string& db_name) {
             ihs_[index_name] = ix_manager_->open_index(tab_name, index.cols);
         }
     }
-
-    // 切换回父目录
-    if (chdir("..") < 0) {
-        throw UnixError();
-    }
 }
 
 /**
@@ -149,6 +144,10 @@ void SmManager::close_db() {
     }
     fhs_.clear();
     ihs_.clear();
+
+    if (chdir("..") < 0) {
+        throw UnixError();
+    }
 }
 
 /**
