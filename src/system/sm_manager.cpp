@@ -85,7 +85,35 @@ void SmManager::drop_db(const std::string& db_name) {
  * @param {string&} db_name 数据库名称，与文件夹同名
  */
 void SmManager::open_db(const std::string& db_name) {
-    
+    if (!is_dir(db_name)) {
+        throw DatabaseNotFoundError(db_name);
+    }
+
+    // 将当前工作目录设置为数据库目录
+    if (chdir(db_name.c_str()) < 0) {
+        throw UnixError();
+    }
+
+    // 从 DB_META_NAME 文件中加载数据库元数据
+    std::ifstream ifs(DB_META_NAME);
+    if (!ifs) {
+        throw UnixError();
+    }
+    // 元数据读入内存
+    ifs >> db_;
+    ifs.close();
+
+    // 打开数据中每个表的记录文件
+    for (auto& entry : db_.tabs_) {
+        const std::string& tableName = entry.first;
+        rm_manager_->create_file(tableName, db_.tabs_.size());
+        fhs_[tableName] = rm_manager_->open_file(tableName);
+    }
+
+    // 切换回父目录
+    if (chdir("..") < 0) {
+        throw UnixError();
+    }
 }
 
 /**
@@ -101,7 +129,24 @@ void SmManager::flush_meta() {
  * @description: 关闭数据库并把数据落盘
  */
 void SmManager::close_db() {
-    
+
+    // 把数据库相关的元数据刷入磁盘中
+    flush_meta();
+
+    // 把每个表的数据文件刷入磁盘中
+    for (auto& entry : fhs_) {
+        const auto tableName = entry.first;
+        RmFileHandle* rmFileHandle = entry.second.get();
+        rm_manager_->close_file(rmFileHandle);
+        // 如果有索引文件，也要落盘
+        if (!ihs_.count(tableName)) {
+            IxIndexHandle* indexHandle = ihs_[tableName].get();
+            ix_manager_->close_index(indexHandle);
+        }
+    }
+
+    fhs_.clear();
+    ihs_.clear();
 }
 
 /**
@@ -188,7 +233,14 @@ void SmManager::create_table(const std::string& tab_name, const std::vector<ColD
  * @param {Context*} context
  */
 void SmManager::drop_table(const std::string& tab_name, Context* context) {
-    
+    // 删除表的数据文件
+    rm_manager_->destroy_file(tab_name);
+    // 从数据库元数据中移除表信息
+    db_.tabs_.erase(tab_name);
+    fhs_.erase(tab_name);
+    if (ihs_.count(tab_name)) {
+        ihs_.erase(tab_name);
+    }
 }
 
 /**
