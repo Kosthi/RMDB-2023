@@ -101,13 +101,17 @@ void SmManager::open_db(const std::string& db_name) {
     }
     // 元数据读入内存
     ifs >> db_;
-    ifs.close();
 
-    // 打开数据中每个表的记录文件
-    for (auto& entry : db_.tabs_) {
-        const std::string& tableName = entry.first;
-        rm_manager_->create_file(tableName, db_.tabs_.size());
-        fhs_[tableName] = rm_manager_->open_file(tableName);
+    // 打开数据中每个表的记录文件并读入
+    for (auto& tab : db_.tabs_) {
+        const std::string& tab_name = tab.first;
+        auto& tab_meta = tab.second;
+        fhs_[tab_name] = rm_manager_->open_file(tab_name);
+        // 打开表上的所有索引并读入
+        for (auto& index : tab_meta.indexes) {
+            const std::string index_name = ix_manager_->get_index_name(tab_name, index.cols);
+            ihs_[index_name] = ix_manager_->open_index(tab_name, index.cols);
+        }
     }
 
     // 切换回父目录
@@ -132,19 +136,17 @@ void SmManager::close_db() {
 
     // 把数据库相关的元数据刷入磁盘中
     flush_meta();
+    db_.name_.clear();
+    db_.tabs_.clear();
 
     // 把每个表的数据文件刷入磁盘中
     for (auto& entry : fhs_) {
-        const auto tableName = entry.first;
-        RmFileHandle* rmFileHandle = entry.second.get();
-        rm_manager_->close_file(rmFileHandle);
-        // 如果有索引文件，也要落盘
-        if (!ihs_.count(tableName)) {
-            IxIndexHandle* indexHandle = ihs_[tableName].get();
-            ix_manager_->close_index(indexHandle);
-        }
+        rm_manager_->close_file(entry.second.get());
     }
-
+    // 把每个表的索引文件刷入磁盘中
+    for (auto& entry : ihs_) {
+        ix_manager_->close_index(entry.second.get());
+    }
     fhs_.clear();
     ihs_.clear();
 }
@@ -233,14 +235,24 @@ void SmManager::create_table(const std::string& tab_name, const std::vector<ColD
  * @param {Context*} context
  */
 void SmManager::drop_table(const std::string& tab_name, Context* context) {
-    // 删除表的数据文件
+
+    // 先获取表元数据
+    TabMeta& tab = db_.get_table(tab_name);
+
+    // 先关闭再删除表的数据文件
+    rm_manager_->close_file(fhs_[tab_name].get());
     rm_manager_->destroy_file(tab_name);
+
+    // 先关闭再删除表中对应的所有索引文件
+    for (auto& index : tab.indexes) {
+        const std::string& index_name = ix_manager_->get_index_name(tab_name, index.cols);
+        ix_manager_->close_index(ihs_[index_name].get());
+        ix_manager_->destroy_index(tab_name, index.cols);
+        ihs_.erase(index_name);
+    }
     // 从数据库元数据中移除表信息
     db_.tabs_.erase(tab_name);
     fhs_.erase(tab_name);
-    if (ihs_.count(tab_name)) {
-        ihs_.erase(tab_name);
-    }
 }
 
 /**
