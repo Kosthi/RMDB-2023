@@ -85,8 +85,15 @@ void SmManager::drop_db(const std::string& db_name) {
  * @param {string&} db_name 数据库名称，与文件夹同名
  */
 void SmManager::open_db(const std::string& db_name) {
+
+    // 数据库不存在
     if (!is_dir(db_name)) {
         throw DatabaseNotFoundError(db_name);
+    }
+
+    // 数据已经打开
+    if (!db_.name_.empty()) {
+        throw DatabaseExistsError(db_name);
     }
 
     // 将当前工作目录设置为数据库目录
@@ -128,6 +135,10 @@ void SmManager::flush_meta() {
  * @description: 关闭数据库并把数据落盘
  */
 void SmManager::close_db() {
+
+    if (db_.name_.empty()) {
+        throw DatabaseNotFoundError("db not open");
+    }
 
     // 把数据库相关的元数据刷入磁盘中
     flush_meta();
@@ -234,6 +245,10 @@ void SmManager::create_table(const std::string& tab_name, const std::vector<ColD
  * @param {Context*} context
  */
 void SmManager::drop_table(const std::string& tab_name, Context* context) {
+
+    if (!db_.is_table(tab_name)) {
+        throw TableNotFoundError(tab_name);
+    }
 
     // 先获取表元数据
     TabMeta& tab = db_.get_table(tab_name);
