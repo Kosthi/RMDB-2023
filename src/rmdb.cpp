@@ -306,6 +306,10 @@ int main(int argc, char **argv) {
         start_server();
     } catch (RMDBError &e) {
         std::cerr << e.what() << std::endl;
+        std::fstream outfile;
+        outfile.open("output.txt",std::ios::out | std::ios::app);
+        outfile << "failure\n";
+        outfile.close();
         exit(1);
     }
     return 0;
