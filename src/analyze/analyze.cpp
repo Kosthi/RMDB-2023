@@ -158,7 +158,7 @@ void Analyze::check_clause(const std::vector<std::string> &tab_names, std::vecto
                 cond.rhs_val.set_int(static_cast<int>(cond.rhs_val.float_val));
                 cond.rhs_val.init_raw(sizeof(int));
             }
-            else if (lhs_type == TYPE_STRING && rhs_type == TYPE_STRING) {
+            else if (lhs_type == TYPE_STRING && cond.rhs_val.type == TYPE_STRING) {
                 // 字符串
                 cond.rhs_val.init_raw(lhs_col->len);
             }
