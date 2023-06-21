@@ -168,6 +168,12 @@ void *client_handler(void *sock_fd) {
                 }
             }
         }
+        else {
+            std::fstream outfile;
+            outfile.open("output.txt",std::ios::out | std::ios::app);
+            outfile << "failure\n";
+            outfile.close();
+        }
         if(finish_analyze == false) {
             yy_delete_buffer(buf);
             pthread_mutex_unlock(buffer_mutex);
@@ -186,6 +192,7 @@ void *client_handler(void *sock_fd) {
 
     // Clear
     std::cout << "Terminating current client_connection..." << std::endl;
+    sm_manager->close_db();
     close(fd);           // close a file descriptor.
     pthread_exit(NULL);  // terminate calling thread!
 }
