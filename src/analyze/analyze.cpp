@@ -49,7 +49,25 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
         check_clause(query->tables, query->conds);
     } else if (auto x = std::dynamic_pointer_cast<ast::UpdateStmt>(parse)) {
         /** TODO: */
-
+        //处理where条件
+        get_clause(x->conds, query->conds);
+        check_clause({x->tab_name}, query->conds);
+        for (auto& clause : x->set_clauses) {
+            SetClause setClause;
+            setClause.lhs = {x->tab_name, clause->col_name};
+            auto val = convert_sv_value(clause->val);
+            if (val.type == TYPE_INT) {
+                val.init_raw(sizeof(int));
+            }
+            else if (val.type == TYPE_FLOAT) {
+                val.init_raw(sizeof(float));
+            }
+            else {
+                val.init_raw(val.str_val.size());
+            }
+            setClause.rhs = val;
+            query->set_clauses.emplace_back(setClause);
+        }
     } else if (auto x = std::dynamic_pointer_cast<ast::DeleteStmt>(parse)) {
         //处理where条件
         get_clause(x->conds, query->conds);
@@ -131,7 +149,22 @@ void Analyze::check_clause(const std::vector<std::string> &tab_names, std::vecto
         ColType lhs_type = lhs_col->type;
         ColType rhs_type;
         if (cond.is_rhs_val) {
-            cond.rhs_val.init_raw(lhs_col->len);
+            // 处理整型与浮点数的类型转换
+            if (lhs_type == TYPE_FLOAT && cond.rhs_val.type == TYPE_INT) {
+                cond.rhs_val.set_float(static_cast<float>(cond.rhs_val.int_val));
+                cond.rhs_val.init_raw(sizeof(float));
+            }
+            else if (lhs_type == TYPE_INT && cond.rhs_val.type == TYPE_FLOAT){
+                cond.rhs_val.set_int(static_cast<int>(cond.rhs_val.float_val));
+                cond.rhs_val.init_raw(sizeof(int));
+            }
+            else if (lhs_type == TYPE_STRING && rhs_type == TYPE_STRING) {
+                // 字符串
+                cond.rhs_val.init_raw(lhs_col->len);
+            }
+            else {
+                cond.rhs_val.init_raw(lhs_col->len);
+            }
             rhs_type = cond.rhs_val.type;
         } else {
             TabMeta &rhs_tab = sm_manager_->db_.get_table(cond.rhs_col.tab_name);
