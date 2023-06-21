@@ -20,7 +20,7 @@ class UpdateExecutor : public AbstractExecutor {
     TabMeta tab_;
     std::vector<Condition> conds_;
     RmFileHandle *fh_;
-    std::vector<Rid> rids_;
+    std::vector<Rid> rids_; // 已经满足谓词条件
     std::string tab_name_;
     std::vector<SetClause> set_clauses_;
     SmManager *sm_manager_;
@@ -38,7 +38,27 @@ class UpdateExecutor : public AbstractExecutor {
         context_ = context;
     }
     std::unique_ptr<RmRecord> Next() override {
-        
+        // 暂时不用索引
+//        std::vector<IxIndexHandle*> ihs(tab_.cols.size(), nullptr);
+//        auto ix_manager = sm_manager_->get_ix_manager();
+//        for (auto& clause : set_clauses_) {
+//            auto lhs_col = tab_.get_col(clause.lhs.tab_name);
+//            if (tab_.is_index(std::vector<std::string>(1, lhs_col->name))) {
+//                size_t lhs_col_idx = lhs_col - tab_.cols.begin();
+//                auto ix = sm_manager_->get_ix_manager();
+//                ix->get_index_name()
+//                ihs[lhs_col_idx] = sm_manager_.
+//            }
+//        }
+        for (auto& rid : rids_) {
+            auto record = fh_->get_record(rid, context_);
+            RmRecord update_record = *record.get();
+            for (auto& clause : set_clauses_) {
+                auto lhs_col_meta = get_col(tab_.cols, clause.lhs);
+                memcpy(update_record.data + lhs_col_meta->offset, clause.rhs.raw->data, clause.rhs.raw->size);
+            }
+            fh_->update_record(rid, update_record.data, context_);
+        }
         return nullptr;
     }
 
