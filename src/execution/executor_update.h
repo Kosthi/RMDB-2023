@@ -55,6 +55,39 @@ class UpdateExecutor : public AbstractExecutor {
             RmRecord update_record = *record.get();
             for (auto& clause : set_clauses_) {
                 auto lhs_col_meta = get_col(tab_.cols, clause.lhs);
+                if (lhs_col_meta->type == TYPE_FLOAT && clause.rhs.type == TYPE_INT) {
+                    clause.rhs.set_float(static_cast<float>(clause.rhs.int_val));
+                    clause.rhs.raw = nullptr;
+                    clause.rhs.init_raw(sizeof(float));
+                }
+//                else if (lhs_col_meta->type == TYPE_FLOAT && clause.rhs.type == TYPE_STRING) {
+//                    clause.rhs.set_float(static_cast<int>(clause.rhs.float_val));
+//                    clause.rhs.init_raw(sizeof(int));
+//                }
+                else if (lhs_col_meta->type == TYPE_INT && clause.rhs.type == TYPE_FLOAT) {
+                    clause.rhs.set_float(static_cast<int>(clause.rhs.float_val));
+                    clause.rhs.raw = nullptr;
+                    clause.rhs.init_raw(sizeof(int));
+                }
+//                else if (lhs_col_meta->type == TYPE_INT && clause.rhs.type == TYPE_STRING) {
+//                    clause.rhs.set_float(static_cast<int>(clause.rhs.float_val));
+//                    clause.rhs.init_raw(sizeof(int));
+//                }
+//                else if (lhs_col_meta->type == TYPE_STRING && clause.rhs.type == TYPE_INT) {
+//                    clause.rhs.set_str(std::to_string(clause.rhs.int_val));
+//                    clause.rhs.init_raw(lhs_col_meta->len);
+//                }
+//                else if (lhs_col_meta->type == TYPE_STRING && clause.rhs.type == TYPE_FLOAT) {
+//                    clause.rhs.set_str(std::to_string(clause.rhs.float_val));
+//                    clause.rhs.init_raw(lhs_col_meta->len);
+//                }
+                else {
+                    clause.rhs.raw = nullptr;
+                    clause.rhs.init_raw(lhs_col_meta->len);
+                }
+                if (lhs_col_meta->type != clause.rhs.type) {
+                    throw IncompatibleTypeError(coltype2str(lhs_col_meta->type), coltype2str(clause.rhs.type));
+                }
                 memcpy(update_record.data + lhs_col_meta->offset, clause.rhs.raw->data, clause.rhs.raw->size);
             }
             fh_->update_record(rid, update_record.data, context_);
