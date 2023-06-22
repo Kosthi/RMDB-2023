@@ -67,7 +67,7 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
                 val.init_raw(sizeof(int));
             }
             else if (val.type == TYPE_FLOAT) {
-                val.init_raw(sizeof(float));
+                val.init_raw(sizeof(double));
             }
             else {
                 val.init_raw(val.str_val.size());
@@ -168,8 +168,8 @@ void Analyze::check_clause(const std::vector<std::string> &tab_names, std::vecto
         if (cond.is_rhs_val) {
             // 处理整型与浮点数的类型转换
             if (lhs_type == TYPE_FLOAT && cond.rhs_val.type == TYPE_INT) {
-                cond.rhs_val.set_float(static_cast<float>(cond.rhs_val.int_val));
-                cond.rhs_val.init_raw(sizeof(float));
+                cond.rhs_val.set_float(static_cast<double>(cond.rhs_val.int_val));
+                cond.rhs_val.init_raw(sizeof(double));
             }
             else if (lhs_type == TYPE_INT && cond.rhs_val.type == TYPE_FLOAT){
                 cond.rhs_val.set_int(static_cast<int>(cond.rhs_val.float_val));

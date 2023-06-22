@@ -56,16 +56,16 @@ class UpdateExecutor : public AbstractExecutor {
             for (auto& clause : set_clauses_) {
                 auto lhs_col_meta = get_col(tab_.cols, clause.lhs);
                 if (lhs_col_meta->type == TYPE_FLOAT && clause.rhs.type == TYPE_INT) {
-                    clause.rhs.set_float(static_cast<float>(clause.rhs.int_val));
+                    clause.rhs.set_float(static_cast<double>(clause.rhs.int_val));
                     clause.rhs.raw = nullptr;
-                    clause.rhs.init_raw(sizeof(float));
+                    clause.rhs.init_raw(sizeof(double));
                 }
 //                else if (lhs_col_meta->type == TYPE_FLOAT && clause.rhs.type == TYPE_STRING) {
 //                    clause.rhs.set_float(static_cast<int>(clause.rhs.float_val));
 //                    clause.rhs.init_raw(sizeof(int));
 //                }
                 else if (lhs_col_meta->type == TYPE_INT && clause.rhs.type == TYPE_FLOAT) {
-                    clause.rhs.set_float(static_cast<int>(clause.rhs.float_val));
+                    clause.rhs.set_int(static_cast<int>(clause.rhs.float_val));
                     clause.rhs.raw = nullptr;
                     clause.rhs.init_raw(sizeof(int));
                 }

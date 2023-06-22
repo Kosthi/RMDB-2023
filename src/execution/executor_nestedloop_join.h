@@ -170,8 +170,8 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
                 return ai > bi ? 1 : ((ai < bi) ? -1 : 0);
             }
             case TYPE_FLOAT: {
-                float af = *(float *) a;
-                float bf = *(float *) b;
+                double af = *(double *) a;
+                double bf = *(double *) b;
                 return af > bf ? 1 : ((af < bf) ? -1 : 0);
             }
             case TYPE_STRING:

@@ -67,7 +67,7 @@
 
 
 /* First part of user prologue.  */
-#line 1 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 1 "yacc.y"
 
 #include "ast.h"
 #include "yacc.tab.h"
@@ -82,7 +82,7 @@ void yyerror(YYLTYPE *locp, const char* s) {
 
 using namespace ast;
 
-#line 86 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 86 "yacc.tab.cpp"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -105,7 +105,7 @@ using namespace ast;
 #  endif
 # endif
 
-#include "yacc.tab.h"
+#include "yacc.tab.hpp"
 /* Symbol kind.  */
 enum yysymbol_kind_t
 {
@@ -1621,489 +1621,489 @@ yyreduce:
   switch (yyn)
     {
   case 2: /* start: stmt ';'  */
-#line 57 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 57 "yacc.y"
     {
         parse_tree = (yyvsp[-1].sv_node);
         YYACCEPT;
     }
-#line 1630 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1630 "yacc.tab.cpp"
     break;
 
   case 3: /* start: HELP  */
-#line 62 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 62 "yacc.y"
     {
         parse_tree = std::make_shared<Help>();
         YYACCEPT;
     }
-#line 1639 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1639 "yacc.tab.cpp"
     break;
 
   case 4: /* start: EXIT  */
-#line 67 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 67 "yacc.y"
     {
         parse_tree = nullptr;
         YYACCEPT;
     }
-#line 1648 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1648 "yacc.tab.cpp"
     break;
 
   case 5: /* start: T_EOF  */
-#line 72 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 72 "yacc.y"
     {
         parse_tree = nullptr;
         YYACCEPT;
     }
-#line 1657 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1657 "yacc.tab.cpp"
     break;
 
   case 10: /* txnStmt: TXN_BEGIN  */
-#line 87 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 87 "yacc.y"
     {
         (yyval.sv_node) = std::make_shared<TxnBegin>();
     }
-#line 1665 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1665 "yacc.tab.cpp"
     break;
 
   case 11: /* txnStmt: TXN_COMMIT  */
-#line 91 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 91 "yacc.y"
     {
         (yyval.sv_node) = std::make_shared<TxnCommit>();
     }
-#line 1673 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1673 "yacc.tab.cpp"
     break;
 
   case 12: /* txnStmt: TXN_ABORT  */
-#line 95 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 95 "yacc.y"
     {
         (yyval.sv_node) = std::make_shared<TxnAbort>();
     }
-#line 1681 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1681 "yacc.tab.cpp"
     break;
 
   case 13: /* txnStmt: TXN_ROLLBACK  */
-#line 99 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 99 "yacc.y"
     {
         (yyval.sv_node) = std::make_shared<TxnRollback>();
     }
-#line 1689 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1689 "yacc.tab.cpp"
     break;
 
   case 14: /* dbStmt: SHOW TABLES  */
-#line 106 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 106 "yacc.y"
     {
         (yyval.sv_node) = std::make_shared<ShowTables>();
     }
-#line 1697 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1697 "yacc.tab.cpp"
     break;
 
   case 15: /* ddl: CREATE TABLE tbName '(' fieldList ')'  */
-#line 113 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 113 "yacc.y"
     {
         (yyval.sv_node) = std::make_shared<CreateTable>((yyvsp[-3].sv_str), (yyvsp[-1].sv_fields));
     }
-#line 1705 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1705 "yacc.tab.cpp"
     break;
 
   case 16: /* ddl: DROP TABLE tbName  */
-#line 117 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 117 "yacc.y"
     {
         (yyval.sv_node) = std::make_shared<DropTable>((yyvsp[0].sv_str));
     }
-#line 1713 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1713 "yacc.tab.cpp"
     break;
 
   case 17: /* ddl: DESC tbName  */
-#line 121 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 121 "yacc.y"
     {
         (yyval.sv_node) = std::make_shared<DescTable>((yyvsp[0].sv_str));
     }
-#line 1721 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1721 "yacc.tab.cpp"
     break;
 
   case 18: /* ddl: CREATE INDEX tbName '(' colNameList ')'  */
-#line 125 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 125 "yacc.y"
     {
         (yyval.sv_node) = std::make_shared<CreateIndex>((yyvsp[-3].sv_str), (yyvsp[-1].sv_strs));
     }
-#line 1729 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1729 "yacc.tab.cpp"
     break;
 
   case 19: /* ddl: DROP INDEX tbName '(' colNameList ')'  */
-#line 129 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 129 "yacc.y"
     {
         (yyval.sv_node) = std::make_shared<DropIndex>((yyvsp[-3].sv_str), (yyvsp[-1].sv_strs));
     }
-#line 1737 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1737 "yacc.tab.cpp"
     break;
 
   case 20: /* dml: INSERT INTO tbName VALUES '(' valueList ')'  */
-#line 136 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 136 "yacc.y"
     {
         (yyval.sv_node) = std::make_shared<InsertStmt>((yyvsp[-4].sv_str), (yyvsp[-1].sv_vals));
     }
-#line 1745 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1745 "yacc.tab.cpp"
     break;
 
   case 21: /* dml: DELETE FROM tbName optWhereClause  */
-#line 140 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 140 "yacc.y"
     {
         (yyval.sv_node) = std::make_shared<DeleteStmt>((yyvsp[-1].sv_str), (yyvsp[0].sv_conds));
     }
-#line 1753 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1753 "yacc.tab.cpp"
     break;
 
   case 22: /* dml: UPDATE tbName SET setClauses optWhereClause  */
-#line 144 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 144 "yacc.y"
     {
         (yyval.sv_node) = std::make_shared<UpdateStmt>((yyvsp[-3].sv_str), (yyvsp[-1].sv_set_clauses), (yyvsp[0].sv_conds));
     }
-#line 1761 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1761 "yacc.tab.cpp"
     break;
 
   case 23: /* dml: SELECT selector FROM tableList optWhereClause opt_order_clause  */
-#line 148 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 148 "yacc.y"
     {
         (yyval.sv_node) = std::make_shared<SelectStmt>((yyvsp[-4].sv_cols), (yyvsp[-2].sv_strs), (yyvsp[-1].sv_conds), (yyvsp[0].sv_orderby));
     }
-#line 1769 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1769 "yacc.tab.cpp"
     break;
 
   case 24: /* fieldList: field  */
-#line 155 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 155 "yacc.y"
     {
         (yyval.sv_fields) = std::vector<std::shared_ptr<Field>>{(yyvsp[0].sv_field)};
     }
-#line 1777 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1777 "yacc.tab.cpp"
     break;
 
   case 25: /* fieldList: fieldList ',' field  */
-#line 159 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 159 "yacc.y"
     {
         (yyval.sv_fields).push_back((yyvsp[0].sv_field));
     }
-#line 1785 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1785 "yacc.tab.cpp"
     break;
 
   case 26: /* colNameList: colName  */
-#line 166 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 166 "yacc.y"
     {
         (yyval.sv_strs) = std::vector<std::string>{(yyvsp[0].sv_str)};
     }
-#line 1793 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1793 "yacc.tab.cpp"
     break;
 
   case 27: /* colNameList: colNameList ',' colName  */
-#line 170 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 170 "yacc.y"
     {
         (yyval.sv_strs).push_back((yyvsp[0].sv_str));
     }
-#line 1801 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1801 "yacc.tab.cpp"
     break;
 
   case 28: /* field: colName type  */
-#line 177 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 177 "yacc.y"
     {
         (yyval.sv_field) = std::make_shared<ColDef>((yyvsp[-1].sv_str), (yyvsp[0].sv_type_len));
     }
-#line 1809 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1809 "yacc.tab.cpp"
     break;
 
   case 29: /* type: INT  */
-#line 184 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 184 "yacc.y"
     {
         (yyval.sv_type_len) = std::make_shared<TypeLen>(SV_TYPE_INT, sizeof(int));
     }
-#line 1817 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1817 "yacc.tab.cpp"
     break;
 
   case 30: /* type: CHAR '(' VALUE_INT ')'  */
-#line 188 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 188 "yacc.y"
     {
         (yyval.sv_type_len) = std::make_shared<TypeLen>(SV_TYPE_STRING, (yyvsp[-1].sv_int));
     }
-#line 1825 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1825 "yacc.tab.cpp"
     break;
 
   case 31: /* type: FLOAT  */
-#line 192 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 192 "yacc.y"
     {
-        (yyval.sv_type_len) = std::make_shared<TypeLen>(SV_TYPE_FLOAT, sizeof(float));
+        (yyval.sv_type_len) = std::make_shared<TypeLen>(SV_TYPE_FLOAT, sizeof(double));
     }
-#line 1833 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1833 "yacc.tab.cpp"
     break;
 
   case 32: /* valueList: value  */
-#line 199 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 199 "yacc.y"
     {
         (yyval.sv_vals) = std::vector<std::shared_ptr<Value>>{(yyvsp[0].sv_val)};
     }
-#line 1841 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1841 "yacc.tab.cpp"
     break;
 
   case 33: /* valueList: valueList ',' value  */
-#line 203 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 203 "yacc.y"
     {
         (yyval.sv_vals).push_back((yyvsp[0].sv_val));
     }
-#line 1849 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1849 "yacc.tab.cpp"
     break;
 
   case 34: /* value: VALUE_INT  */
-#line 210 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 210 "yacc.y"
     {
         (yyval.sv_val) = std::make_shared<IntLit>((yyvsp[0].sv_int));
     }
-#line 1857 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1857 "yacc.tab.cpp"
     break;
 
   case 35: /* value: VALUE_FLOAT  */
-#line 214 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 214 "yacc.y"
     {
         (yyval.sv_val) = std::make_shared<FloatLit>((yyvsp[0].sv_float));
     }
-#line 1865 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1865 "yacc.tab.cpp"
     break;
 
   case 36: /* value: VALUE_STRING  */
-#line 218 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 218 "yacc.y"
     {
         (yyval.sv_val) = std::make_shared<StringLit>((yyvsp[0].sv_str));
     }
-#line 1873 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1873 "yacc.tab.cpp"
     break;
 
   case 37: /* condition: col op expr  */
-#line 225 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 225 "yacc.y"
     {
         (yyval.sv_cond) = std::make_shared<BinaryExpr>((yyvsp[-2].sv_col), (yyvsp[-1].sv_comp_op), (yyvsp[0].sv_expr));
     }
-#line 1881 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1881 "yacc.tab.cpp"
     break;
 
   case 38: /* optWhereClause: %empty  */
-#line 231 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 231 "yacc.y"
                       { /* ignore*/ }
-#line 1887 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1887 "yacc.tab.cpp"
     break;
 
   case 39: /* optWhereClause: WHERE whereClause  */
-#line 233 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 233 "yacc.y"
     {
         (yyval.sv_conds) = (yyvsp[0].sv_conds);
     }
-#line 1895 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1895 "yacc.tab.cpp"
     break;
 
   case 40: /* whereClause: condition  */
-#line 240 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 240 "yacc.y"
     {
         (yyval.sv_conds) = std::vector<std::shared_ptr<BinaryExpr>>{(yyvsp[0].sv_cond)};
     }
-#line 1903 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1903 "yacc.tab.cpp"
     break;
 
   case 41: /* whereClause: whereClause AND condition  */
-#line 244 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 244 "yacc.y"
     {
         (yyval.sv_conds).push_back((yyvsp[0].sv_cond));
     }
-#line 1911 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1911 "yacc.tab.cpp"
     break;
 
   case 42: /* col: tbName '.' colName  */
-#line 251 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 251 "yacc.y"
     {
         (yyval.sv_col) = std::make_shared<Col>((yyvsp[-2].sv_str), (yyvsp[0].sv_str));
     }
-#line 1919 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1919 "yacc.tab.cpp"
     break;
 
   case 43: /* col: colName  */
-#line 255 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 255 "yacc.y"
     {
         (yyval.sv_col) = std::make_shared<Col>("", (yyvsp[0].sv_str));
     }
-#line 1927 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1927 "yacc.tab.cpp"
     break;
 
   case 44: /* colList: col  */
-#line 262 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 262 "yacc.y"
     {
         (yyval.sv_cols) = std::vector<std::shared_ptr<Col>>{(yyvsp[0].sv_col)};
     }
-#line 1935 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1935 "yacc.tab.cpp"
     break;
 
   case 45: /* colList: colList ',' col  */
-#line 266 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 266 "yacc.y"
     {
         (yyval.sv_cols).push_back((yyvsp[0].sv_col));
     }
-#line 1943 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1943 "yacc.tab.cpp"
     break;
 
   case 46: /* op: '='  */
-#line 273 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 273 "yacc.y"
     {
         (yyval.sv_comp_op) = SV_OP_EQ;
     }
-#line 1951 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1951 "yacc.tab.cpp"
     break;
 
   case 47: /* op: '<'  */
-#line 277 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 277 "yacc.y"
     {
         (yyval.sv_comp_op) = SV_OP_LT;
     }
-#line 1959 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1959 "yacc.tab.cpp"
     break;
 
   case 48: /* op: '>'  */
-#line 281 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 281 "yacc.y"
     {
         (yyval.sv_comp_op) = SV_OP_GT;
     }
-#line 1967 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1967 "yacc.tab.cpp"
     break;
 
   case 49: /* op: NEQ  */
-#line 285 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 285 "yacc.y"
     {
         (yyval.sv_comp_op) = SV_OP_NE;
     }
-#line 1975 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1975 "yacc.tab.cpp"
     break;
 
   case 50: /* op: LEQ  */
-#line 289 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 289 "yacc.y"
     {
         (yyval.sv_comp_op) = SV_OP_LE;
     }
-#line 1983 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1983 "yacc.tab.cpp"
     break;
 
   case 51: /* op: GEQ  */
-#line 293 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 293 "yacc.y"
     {
         (yyval.sv_comp_op) = SV_OP_GE;
     }
-#line 1991 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1991 "yacc.tab.cpp"
     break;
 
   case 52: /* expr: value  */
-#line 300 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 300 "yacc.y"
     {
         (yyval.sv_expr) = std::static_pointer_cast<Expr>((yyvsp[0].sv_val));
     }
-#line 1999 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 1999 "yacc.tab.cpp"
     break;
 
   case 53: /* expr: col  */
-#line 304 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 304 "yacc.y"
     {
         (yyval.sv_expr) = std::static_pointer_cast<Expr>((yyvsp[0].sv_col));
     }
-#line 2007 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 2007 "yacc.tab.cpp"
     break;
 
   case 54: /* setClauses: setClause  */
-#line 311 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 311 "yacc.y"
     {
         (yyval.sv_set_clauses) = std::vector<std::shared_ptr<SetClause>>{(yyvsp[0].sv_set_clause)};
     }
-#line 2015 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 2015 "yacc.tab.cpp"
     break;
 
   case 55: /* setClauses: setClauses ',' setClause  */
-#line 315 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 315 "yacc.y"
     {
         (yyval.sv_set_clauses).push_back((yyvsp[0].sv_set_clause));
     }
-#line 2023 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 2023 "yacc.tab.cpp"
     break;
 
   case 56: /* setClause: colName '=' value  */
-#line 322 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 322 "yacc.y"
     {
         (yyval.sv_set_clause) = std::make_shared<SetClause>((yyvsp[-2].sv_str), (yyvsp[0].sv_val));
     }
-#line 2031 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 2031 "yacc.tab.cpp"
     break;
 
   case 57: /* selector: '*'  */
-#line 329 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 329 "yacc.y"
     {
         (yyval.sv_cols) = {};
     }
-#line 2039 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 2039 "yacc.tab.cpp"
     break;
 
   case 59: /* tableList: tbName  */
-#line 337 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 337 "yacc.y"
     {
         (yyval.sv_strs) = std::vector<std::string>{(yyvsp[0].sv_str)};
     }
-#line 2047 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 2047 "yacc.tab.cpp"
     break;
 
   case 60: /* tableList: tableList ',' tbName  */
-#line 341 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 341 "yacc.y"
     {
         (yyval.sv_strs).push_back((yyvsp[0].sv_str));
     }
-#line 2055 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 2055 "yacc.tab.cpp"
     break;
 
   case 61: /* tableList: tableList JOIN tbName  */
-#line 345 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 345 "yacc.y"
     {
         (yyval.sv_strs).push_back((yyvsp[0].sv_str));
     }
-#line 2063 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 2063 "yacc.tab.cpp"
     break;
 
   case 62: /* opt_order_clause: ORDER BY order_clause  */
-#line 352 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 352 "yacc.y"
     { 
         (yyval.sv_orderby) = (yyvsp[0].sv_orderby); 
     }
-#line 2071 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 2071 "yacc.tab.cpp"
     break;
 
   case 63: /* opt_order_clause: %empty  */
-#line 355 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 355 "yacc.y"
                       { /* ignore*/ }
-#line 2077 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 2077 "yacc.tab.cpp"
     break;
 
   case 64: /* order_clause: col opt_asc_desc  */
-#line 360 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 360 "yacc.y"
     { 
         (yyval.sv_orderby) = std::make_shared<OrderBy>((yyvsp[-1].sv_col), (yyvsp[0].sv_orderby_dir));
     }
-#line 2085 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 2085 "yacc.tab.cpp"
     break;
 
   case 65: /* opt_asc_desc: ASC  */
-#line 366 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 366 "yacc.y"
                  { (yyval.sv_orderby_dir) = OrderBy_ASC;     }
-#line 2091 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 2091 "yacc.tab.cpp"
     break;
 
   case 66: /* opt_asc_desc: DESC  */
-#line 367 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 367 "yacc.y"
                  { (yyval.sv_orderby_dir) = OrderBy_DESC;    }
-#line 2097 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 2097 "yacc.tab.cpp"
     break;
 
   case 67: /* opt_asc_desc: %empty  */
-#line 368 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 368 "yacc.y"
             { (yyval.sv_orderby_dir) = OrderBy_DEFAULT; }
-#line 2103 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 2103 "yacc.tab.cpp"
     break;
 
 
-#line 2107 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.tab.cpp"
+#line 2107 "yacc.tab.cpp"
 
       default: break;
     }
@@ -2332,5 +2332,5 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 374 "/Users/sxy/Documents/projects/rucbase/src/parser/yacc.y"
+#line 374 "yacc.y"
 
