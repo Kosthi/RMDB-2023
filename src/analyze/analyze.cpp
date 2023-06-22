@@ -23,7 +23,11 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
         // 处理表名
         query->tables = std::move(x->tabs);
         /** TODO: 检查表是否存在 */
-
+        for (auto& table_name : query->tables) {
+            if (!sm_manager_->db_.is_table(table_name)) {
+                throw TableNotFoundError(table_name);
+            }
+        }
         // 处理target list，再target list中添加上表名，例如 a.id
         for (auto &sv_sel_col : x->cols) {
             TabCol sel_col = {.tab_name = sv_sel_col->tab_name, .col_name = sv_sel_col->col_name};
@@ -34,12 +38,14 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
         get_all_cols(query->tables, all_cols);
         if (query->cols.empty()) {
             // select all columns
+            // select *
             for (auto &col : all_cols) {
                 TabCol sel_col = {.tab_name = col.tab_name, .col_name = col.name};
                 query->cols.push_back(sel_col);
             }
         } else {
             // infer table name from column name
+            // select t.id, or id
             for (auto &sel_col : query->cols) {
                 sel_col = check_column(all_cols, sel_col);  // 列元数据校验
             }
@@ -52,6 +58,7 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
         //处理where条件
         get_clause(x->conds, query->conds);
         check_clause({x->tab_name}, query->conds);
+        // 处理 set 语句
         for (auto& clause : x->set_clauses) {
             SetClause setClause;
             setClause.lhs = {x->tab_name, clause->col_name};
@@ -89,6 +96,7 @@ TabCol Analyze::check_column(const std::vector<ColMeta> &all_cols, TabCol target
     if (target.tab_name.empty()) {
         // Table name not specified, infer table name from column name
         std::string tab_name;
+        // 找到段名相同的表名，若找到多次，则返回模糊段错误
         for (auto &col : all_cols) {
             if (col.name == target.col_name) {
                 if (!tab_name.empty()) {
@@ -103,7 +111,16 @@ TabCol Analyze::check_column(const std::vector<ColMeta> &all_cols, TabCol target
         target.tab_name = tab_name;
     } else {
         /** TODO: Make sure target column exists */
-        
+        bool is_find = true;
+        for (auto &col : all_cols) {
+            if (col.tab_name == target.tab_name && col.name == target.col_name) {
+                is_find = false;
+                break;
+            }
+        }
+        if (is_find) {
+            throw ColumnNotFoundError(target.col_name);
+        }
     }
     return target;
 }
