@@ -60,27 +60,11 @@ class UpdateExecutor : public AbstractExecutor {
                     clause.rhs.raw = nullptr;
                     clause.rhs.init_raw(sizeof(double));
                 }
-//                else if (lhs_col_meta->type == TYPE_FLOAT && clause.rhs.type == TYPE_STRING) {
-//                    clause.rhs.set_float(static_cast<int>(clause.rhs.float_val));
-//                    clause.rhs.init_raw(sizeof(int));
-//                }
                 else if (lhs_col_meta->type == TYPE_INT && clause.rhs.type == TYPE_FLOAT) {
                     clause.rhs.set_int(static_cast<int>(clause.rhs.float_val));
                     clause.rhs.raw = nullptr;
                     clause.rhs.init_raw(sizeof(int));
                 }
-//                else if (lhs_col_meta->type == TYPE_INT && clause.rhs.type == TYPE_STRING) {
-//                    clause.rhs.set_float(static_cast<int>(clause.rhs.float_val));
-//                    clause.rhs.init_raw(sizeof(int));
-//                }
-//                else if (lhs_col_meta->type == TYPE_STRING && clause.rhs.type == TYPE_INT) {
-//                    clause.rhs.set_str(std::to_string(clause.rhs.int_val));
-//                    clause.rhs.init_raw(lhs_col_meta->len);
-//                }
-//                else if (lhs_col_meta->type == TYPE_STRING && clause.rhs.type == TYPE_FLOAT) {
-//                    clause.rhs.set_str(std::to_string(clause.rhs.float_val));
-//                    clause.rhs.init_raw(lhs_col_meta->len);
-//                }
                 else {
                     clause.rhs.raw = nullptr;
                     clause.rhs.init_raw(lhs_col_meta->len);

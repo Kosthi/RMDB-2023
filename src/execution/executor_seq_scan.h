@@ -144,7 +144,7 @@ class SeqScanExecutor : public AbstractExecutor {
         }
         // 判断左右值数据类型是否相同
         if (lhs_col_meta->type != rhs_type) {
-            throw InternalError("type is not same");
+            throw IncompatibleTypeError(coltype2str(lhs_col_meta->type), coltype2str(rhs_type));
         }
         int cmp = compare(lhs_data, rhs_data, lhs_col_meta->len, rhs_type);
         switch (cond.op) {
@@ -152,7 +152,6 @@ class SeqScanExecutor : public AbstractExecutor {
             case OP_NE: return cmp != 0;
             case OP_LT: return cmp < 0;
             case OP_GT: return cmp > 0;
-            // 可能没有用，因为上述情况已经包括了~QAQ~
             case OP_LE: return cmp <= 0;
             case OP_GE: return cmp >= 0;
             default:

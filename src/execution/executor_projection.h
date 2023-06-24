@@ -21,7 +21,7 @@ class ProjectionExecutor : public AbstractExecutor {
     std::unique_ptr<AbstractExecutor> prev_;        // 投影节点的儿子节点
     std::vector<ColMeta> cols_;                     // 需要投影的字段
     size_t len_;                                    // 字段总长度
-    std::vector<size_t> sel_idxs_;                  
+    std::vector<size_t> sel_idxs_;                  // 选中的字段在表中的索引，对应第几个字段
 
    public:
     ProjectionExecutor(std::unique_ptr<AbstractExecutor> prev, const std::vector<TabCol> &sel_cols) {
@@ -45,19 +45,22 @@ class ProjectionExecutor : public AbstractExecutor {
     void nextTuple() override { prev_->nextTuple(); }
 
     std::unique_ptr<RmRecord> Next() override {
-        // 得到前一个字段
+        // 先得到表中全部字段
         auto& prev_cols = prev_->cols();
-        // 得到前一个的记录
+        // 得到满足 where 条件的记录
         auto prev_record = prev_->Next();
-        // 当前要投影的字段
+        // 要投影的所有字段
         auto& proj_cols = cols_;
-        // 当前要显示的记录
+        // 要投影的所有记录
         auto proj_record = std::make_unique<RmRecord>(len_);
 
         for (size_t proj_idx = 0; proj_idx < proj_cols.size(); proj_idx++) {
             size_t prev_idx = sel_idxs_[proj_idx];
+            // 得到表中选中的字段元信息
             auto& prev_col = prev_cols[prev_idx];
+            // 得到投影表中的第 proj_idx 个字段的元信息
             auto& proj_col = proj_cols[proj_idx];
+            // 拷贝到投影表
             memcpy(proj_record->data + proj_col.offset, prev_record->data + prev_col.offset, proj_col.len);
         }
         return proj_record;

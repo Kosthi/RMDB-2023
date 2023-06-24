@@ -86,22 +86,6 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
             }
             return;
         }
-//        return;
-//        if (fed_conds_.size()) {
-//            while (!right_->is_end()) {
-//                if (cmp_conds(right_->Next().get(), fed_conds_, cols_)) {
-//                    return;
-//                }
-//                right_->nextTuple();
-//            }
-//        }
-//        if (right_->is_end()) {
-//            left_->nextTuple();
-//            if (left_->is_end()) {
-//                return;
-//            }
-//            right_->beginTuple();
-//        }
     }
 
     std::unique_ptr<RmRecord> Next() override {
@@ -121,17 +105,10 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
         // 提取左值与右值的数据和类型
         auto lhs_col_meta = get_col(rec_cols, cond.lhs_col);
         auto rhs_col_meta = get_col(rec_cols, cond.rhs_col);
+        // 要以参数形式传递得到记录，不能直接left_->Next()，否则 data 地址是不正确的
         auto lhs_data = lrec->data + lhs_col_meta->offset;
         auto rhs_data = rrec->data + rhs_col_meta->offset - left_->tupleLen();
         ColType rhs_type = rhs_col_meta->type;
-        // rhs is val
-//        if (cond.is_rhs_val) {
-//            rhs_type = cond.rhs_val.type;
-//            rhs_data = cond.rhs_val.raw->data;
-//        }
-//        else {
-            // rhs is col
-       // }
         // 判断左右值数据类型是否相同
         if (lhs_col_meta->type != rhs_type) {
             return false;
@@ -142,7 +119,6 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
             case OP_NE: return cmp != 0;
             case OP_LT: return cmp < 0;
             case OP_GT: return cmp > 0;
-                // 可能没有用，因为上述情况已经包括了~QAQ~
             case OP_LE: return cmp <= 0;
             case OP_GE: return cmp >= 0;
             default:

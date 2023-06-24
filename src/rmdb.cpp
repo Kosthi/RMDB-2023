@@ -169,6 +169,7 @@ void *client_handler(void *sock_fd) {
             }
         }
         else {
+            // 对于所有不合法的sql语句，都需要输出failure
             std::fstream outfile;
             outfile.open("output.txt",std::ios::out | std::ios::app);
             outfile << "failure\n";
