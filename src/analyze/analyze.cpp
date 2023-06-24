@@ -69,6 +69,9 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
             else if (val.type == TYPE_FLOAT) {
                 val.init_raw(sizeof(double));
             }
+            else if (val.type == TYPE_BIGINT) {
+                val.init_raw(sizeof(long long));
+            }
             else {
                 val.init_raw(val.str_val.size());
             }
@@ -175,6 +178,17 @@ void Analyze::check_clause(const std::vector<std::string> &tab_names, std::vecto
                 cond.rhs_val.set_int(static_cast<int>(cond.rhs_val.float_val));
                 cond.rhs_val.init_raw(sizeof(int));
             }
+            // BIGINT 向下兼容 INT
+            else if (lhs_type == TYPE_BIGINT && cond.rhs_val.type == TYPE_INT){
+                cond.rhs_val.set_bigint(static_cast<long long>(cond.rhs_val.int_val));
+                cond.rhs_val.init_raw(sizeof(long long));
+            }
+            else if (lhs_type == TYPE_INT && cond.rhs_val.type == TYPE_BIGINT) {
+                if (cond.rhs_val.bigint_val <= INT32_MAX && cond.rhs_val.bigint_val >= INT32_MIN) {
+                    cond.rhs_val.set_int(static_cast<int>(cond.rhs_val.bigint_val));
+                    cond.rhs_val.init_raw(sizeof(int));
+                }
+            }
             else if (lhs_type == TYPE_STRING && cond.rhs_val.type == TYPE_STRING) {
                 // 字符串
                 cond.rhs_val.init_raw(lhs_col->len);
@@ -201,6 +215,8 @@ Value Analyze::convert_sv_value(const std::shared_ptr<ast::Value> &sv_val) {
         val.set_int(int_lit->val);
     } else if (auto float_lit = std::dynamic_pointer_cast<ast::FloatLit>(sv_val)) {
         val.set_float(float_lit->val);
+    } else if (auto bigint_lit = std::dynamic_pointer_cast<ast::BigintLit>(sv_val)) {
+        val.set_bigint(bigint_lit->val);
     } else if (auto str_lit = std::dynamic_pointer_cast<ast::StringLit>(sv_val)) {
         val.set_str(str_lit->val);
     } else {

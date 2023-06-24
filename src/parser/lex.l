@@ -36,9 +36,11 @@ white_space [ \t]+
 new_line "\r"|"\n"|"\r\n"
 sign "+"|"-"
 identifier {alpha}(_|{alpha}|{digit})*
-value_int {sign}?{digit}+
+/* value_int {sign}?{digit}+ */
+value_int [+-]?[0-9]{1,9}
 value_float {sign}?{digit}+\.({digit}+)?
 value_string '[^']*'
+value_bigint [+-]?[0-9]{10,}
 single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 
 %x STATE_COMMENT
@@ -77,6 +79,7 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 "INT" { return INT; }
 "CHAR" { return CHAR; }
 "FLOAT" { return FLOAT; }
+"BIGINT" { return BIGINT; }
 "INDEX" { return INDEX; }
 "AND" { return AND; }
 "JOIN" {return JOIN;}
@@ -107,6 +110,10 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 {value_string} {
     yylval->sv_str = std::string(yytext + 1, strlen(yytext) - 2);
     return VALUE_STRING;
+}
+{value_bigint} {
+    yylval->sv_bigint = atoll(yytext);
+    return VALUE_BIGINT;
 }
     /* EOF */
 <<EOF>> { return T_EOF; }

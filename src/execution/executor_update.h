@@ -65,6 +65,18 @@ class UpdateExecutor : public AbstractExecutor {
                     clause.rhs.raw = nullptr;
                     clause.rhs.init_raw(sizeof(int));
                 }
+                else if (lhs_col_meta->type == TYPE_BIGINT && clause.rhs.type == TYPE_INT) {
+                    clause.rhs.set_bigint(static_cast<long long>(clause.rhs.int_val));
+                    clause.rhs.raw = nullptr;
+                    clause.rhs.init_raw(sizeof(long long));
+                }
+                else if (lhs_col_meta->type == TYPE_INT && clause.rhs.type == TYPE_BIGINT) {
+                    if (clause.rhs.bigint_val <= INT32_MAX && clause.rhs.bigint_val >= INT32_MIN) {
+                        clause.rhs.set_int(static_cast<int>(clause.rhs.bigint_val));
+                        clause.rhs.raw = nullptr;
+                        clause.rhs.init_raw(sizeof(int));
+                    }
+                }
                 else {
                     clause.rhs.raw = nullptr;
                     clause.rhs.init_raw(lhs_col_meta->len);

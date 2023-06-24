@@ -150,6 +150,11 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
                 double bf = *(double *) b;
                 return af > bf ? 1 : ((af < bf) ? -1 : 0);
             }
+            case TYPE_BIGINT: {
+                long long al = *(long long *) a;
+                long long bl = *(long long *) b;
+                return al > bl ? 1 : ((al < bl) ? -1 : 0);
+            }
             case TYPE_STRING:
                 return memcmp(a, b, col_len);
             default:

@@ -34,6 +34,7 @@ struct Value {
         int int_val;      // int value
         double float_val;  // float value
         // float float_val;  // float value
+        long long bigint_val;
     };
     std::string str_val;  // string value
 
@@ -47,6 +48,17 @@ struct Value {
     void set_float(double float_val_) {
         type = TYPE_FLOAT;
         float_val = float_val_;
+    }
+
+    void set_bigint(long long bigint_val_) {
+        if (bigint_val_ == LLONG_MAX) {
+            throw InternalError("Bigint is too big");
+        }
+        else if (bigint_val_ == LLONG_MIN) {
+            throw InternalError("Bigint is too small");
+        }
+        type = TYPE_BIGINT;
+        bigint_val = bigint_val_;
     }
 
     void set_str(std::string str_val_) {
@@ -63,6 +75,9 @@ struct Value {
         } else if (type == TYPE_FLOAT) {
             assert(len == sizeof(double));
             *(double *)(raw->data) = float_val;
+        } else if (type == TYPE_BIGINT) {
+            assert(len == sizeof(long long));
+            *(long long *)(raw->data) = bigint_val;
         } else if (type == TYPE_STRING) {
             if (len < (int)str_val.size()) {
                 throw StringOverflowError();
