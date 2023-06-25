@@ -1190,28 +1190,32 @@ case 47:
 YY_RULE_SETUP
 #line 115 "lex.l"
 {
-    yylval->sv_bigint = atoll(yytext);
-    return VALUE_BIGINT;
+    try {
+        yylval->sv_bigint = std::stoll(yytext);
+        return VALUE_BIGINT;
+    } catch (std::out_of_range& e) {
+        std::cerr << e.what() << ", Bigint is out of range" << std::endl;
+    }
 }
 	YY_BREAK
 /* EOF */
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(STATE_COMMENT):
-#line 120 "lex.l"
+#line 124 "lex.l"
 { return T_EOF; }
 	YY_BREAK
 /* unexpected char */
 case 48:
 YY_RULE_SETUP
-#line 122 "lex.l"
+#line 126 "lex.l"
 { std::cerr << "Lexer Error: unexpected character " << yytext[0] << std::endl; }
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 123 "lex.l"
+#line 127 "lex.l"
 ECHO;
 	YY_BREAK
-#line 1214 "lex.yy.c"
+#line 1218 "lex.yy.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2177,6 +2181,6 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 123 "lex.l"
+#line 127 "lex.l"
 
 

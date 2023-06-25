@@ -112,8 +112,12 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
     return VALUE_STRING;
 }
 {value_bigint} {
-    yylval->sv_bigint = atoll(yytext);
-    return VALUE_BIGINT;
+    try {
+        yylval->sv_bigint = std::stoll(yytext);
+        return VALUE_BIGINT;
+    } catch (std::out_of_range& e) {
+        std::cerr << e.what() << ", Bigint is out of range" << std::endl;
+    }
 }
     /* EOF */
 <<EOF>> { return T_EOF; }

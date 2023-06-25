@@ -51,12 +51,6 @@ struct Value {
     }
 
     void set_bigint(long long bigint_val_) {
-        if (bigint_val_ == LLONG_MAX) {
-            throw InternalError("Bigint is too big");
-        }
-        else if (bigint_val_ == LLONG_MIN) {
-            throw InternalError("Bigint is too small");
-        }
         type = TYPE_BIGINT;
         bigint_val = bigint_val_;
     }

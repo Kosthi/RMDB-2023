@@ -1,6 +1,6 @@
-#line 1 "/Users/koschei/Project/rmdb/src/parser/lex.yy.cpp"
+#line 1 "lex.yy.cpp"
 
-#line 3 "/Users/koschei/Project/rmdb/src/parser/lex.yy.cpp"
+#line 3 "lex.yy.cpp"
 
 #define  YY_INT_ALIGNED short int
 
@@ -637,10 +637,10 @@ char *yytext;
         } \
     }
 
-#line 640 "/Users/koschei/Project/rmdb/src/parser/lex.yy.cpp"
+#line 640 "lex.yy.cpp"
 /* value_int {sign}?{digit}+ */
 
-#line 643 "/Users/koschei/Project/rmdb/src/parser/lex.yy.cpp"
+#line 643 "lex.yy.cpp"
 
 #define INITIAL 0
 #define STATE_COMMENT 1
@@ -878,7 +878,7 @@ YY_DECL
 
 #line 50 "lex.l"
     /* block comment */
-#line 881 "/Users/koschei/Project/rmdb/src/parser/lex.yy.cpp"
+#line 881 "lex.yy.cpp"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -1190,28 +1190,32 @@ case 47:
 YY_RULE_SETUP
 #line 115 "lex.l"
 {
-    yylval->sv_bigint = atoll(yytext);
-    return VALUE_BIGINT;
+    try {
+        yylval->sv_bigint = std::stoll(yytext);
+        return VALUE_BIGINT;
+    } catch (std::out_of_range& e) {
+        std::cerr << e.what() << ", Bigint is out of range" << std::endl;
+    }
 }
 	YY_BREAK
 /* EOF */
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(STATE_COMMENT):
-#line 120 "lex.l"
+#line 124 "lex.l"
 { return T_EOF; }
 	YY_BREAK
 /* unexpected char */
 case 48:
 YY_RULE_SETUP
-#line 122 "lex.l"
+#line 126 "lex.l"
 { std::cerr << "Lexer Error: unexpected character " << yytext[0] << std::endl; }
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 123 "lex.l"
+#line 127 "lex.l"
 ECHO;
 	YY_BREAK
-#line 1214 "/Users/koschei/Project/rmdb/src/parser/lex.yy.cpp"
+#line 1218 "lex.yy.cpp"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2177,6 +2181,6 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 123 "lex.l"
+#line 127 "lex.l"
 
 
