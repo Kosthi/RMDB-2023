@@ -12,6 +12,7 @@ See the Mulan PSL v2 for more details. */
 #include <vector>
 #include <string>
 #include <memory>
+#include "defs.h"
 
 enum JoinType {
     INNER_JOIN, LEFT_JOIN, RIGHT_JOIN, FULL_JOIN
@@ -19,7 +20,7 @@ enum JoinType {
 namespace ast {
 
 enum SvType {
-    SV_TYPE_INT, SV_TYPE_FLOAT, SV_TYPE_STRING, SV_TYPE_BIGINT
+    SV_TYPE_INT, SV_TYPE_FLOAT, SV_TYPE_STRING, SV_TYPE_BIGINT, SV_TYPE_DATETIME
 };
 
 enum SvCompOp {
@@ -139,6 +140,12 @@ struct BigintLit : public Value {
     BigintLit(long long val_) : val(val_) {}
 };
 
+struct DatetimeLit : public Value {
+    DateTime val;
+
+    DatetimeLit(DateTime val_) : val(val_) {}
+};
+
 struct Col : public Expr {
     std::string tab_name;
     std::string col_name;
@@ -237,6 +244,7 @@ struct SemValue {
     double sv_float;
     std::string sv_str;
     long long sv_bigint;
+    DateTime sv_datetime;
     OrderByDir sv_orderby_dir;
     std::vector<std::string> sv_strs;
 

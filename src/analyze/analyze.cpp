@@ -72,6 +72,9 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
             else if (val.type == TYPE_BIGINT) {
                 val.init_raw(sizeof(long long));
             }
+            else if (val.type == TYPE_DATETIME) {
+                val.init_raw(sizeof(DateTime));
+            }
             else {
                 val.init_raw(val.str_val.size());
             }
@@ -193,6 +196,9 @@ void Analyze::check_clause(const std::vector<std::string> &tab_names, std::vecto
                 // 字符串
                 cond.rhs_val.init_raw(lhs_col->len);
             }
+            else if (lhs_type == TYPE_DATETIME && cond.rhs_val.type == TYPE_DATETIME) {
+                cond.rhs_val.init_raw(lhs_col->len);
+            }
             else {
                 cond.rhs_val.init_raw(lhs_col->len);
             }
@@ -219,6 +225,8 @@ Value Analyze::convert_sv_value(const std::shared_ptr<ast::Value> &sv_val) {
         val.set_bigint(bigint_lit->val);
     } else if (auto str_lit = std::dynamic_pointer_cast<ast::StringLit>(sv_val)) {
         val.set_str(str_lit->val);
+    } else if (auto datetime_lit = std::dynamic_pointer_cast<ast::DatetimeLit>(sv_val)) {
+        val.set_datetime(datetime_lit->val);
     } else {
         throw InternalError("Unexpected sv value type");
     }

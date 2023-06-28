@@ -48,8 +48,7 @@ extern int yydebug;
 /* Token kinds.  */
 #ifndef YYTOKENTYPE
 # define YYTOKENTYPE
-  enum yytokentype
-  {
+enum yytokentype {
     YYEMPTY = -2,
     YYEOF = 0,                     /* "end of file"  */
     YYerror = 256,                 /* error  */
@@ -76,27 +75,29 @@ extern int yydebug;
     CHAR = 277,                    /* CHAR  */
     FLOAT = 278,                   /* FLOAT  */
     BIGINT = 279,                  /* BIGINT  */
-    INDEX = 280,                   /* INDEX  */
-    AND = 281,                     /* AND  */
-    JOIN = 282,                    /* JOIN  */
-    EXIT = 283,                    /* EXIT  */
-    HELP = 284,                    /* HELP  */
-    TXN_BEGIN = 285,               /* TXN_BEGIN  */
-    TXN_COMMIT = 286,              /* TXN_COMMIT  */
-    TXN_ABORT = 287,               /* TXN_ABORT  */
-    TXN_ROLLBACK = 288,            /* TXN_ROLLBACK  */
-    ORDER_BY = 289,                /* ORDER_BY  */
-    LEQ = 290,                     /* LEQ  */
-    NEQ = 291,                     /* NEQ  */
-    GEQ = 292,                     /* GEQ  */
-    T_EOF = 293,                   /* T_EOF  */
-    IDENTIFIER = 294,              /* IDENTIFIER  */
-    VALUE_STRING = 295,            /* VALUE_STRING  */
-    VALUE_INT = 296,               /* VALUE_INT  */
-    VALUE_FLOAT = 297,             /* VALUE_FLOAT  */
-    VALUE_BIGINT = 298             /* VALUE_BIGINT  */
-  };
-  typedef enum yytokentype yytoken_kind_t;
+    DATETIME = 280,                /* DATETIME  */
+    INDEX = 281,                   /* INDEX  */
+    AND = 282,                     /* AND  */
+    JOIN = 283,                    /* JOIN  */
+    EXIT = 284,                    /* EXIT  */
+    HELP = 285,                    /* HELP  */
+    TXN_BEGIN = 286,               /* TXN_BEGIN  */
+    TXN_COMMIT = 287,              /* TXN_COMMIT  */
+    TXN_ABORT = 288,               /* TXN_ABORT  */
+    TXN_ROLLBACK = 289,            /* TXN_ROLLBACK  */
+    ORDER_BY = 290,                /* ORDER_BY  */
+    LEQ = 291,                     /* LEQ  */
+    NEQ = 292,                     /* NEQ  */
+    GEQ = 293,                     /* GEQ  */
+    T_EOF = 294,                   /* T_EOF  */
+    IDENTIFIER = 295,              /* IDENTIFIER  */
+    VALUE_STRING = 296,            /* VALUE_STRING  */
+    VALUE_INT = 297,               /* VALUE_INT  */
+    VALUE_FLOAT = 298,             /* VALUE_FLOAT  */
+    VALUE_BIGINT = 299,            /* VALUE_BIGINT  */
+    VALUE_DATETIME = 300           /* VALUE_DATETIME  */
+};
+typedef enum yytokentype yytoken_kind_t;
 #endif
 
 /* Value type.  */

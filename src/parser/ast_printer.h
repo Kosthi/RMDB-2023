@@ -47,6 +47,7 @@ private:
                 {SV_TYPE_FLOAT,  "FLOAT"},
                 {SV_TYPE_STRING, "STRING"},
                 {SV_TYPE_BIGINT, "BIGINT"},
+                {SV_TYPE_DATETIME, "DATETIME"}
         };
         return m.at(type);
     }
@@ -125,6 +126,9 @@ private:
             print_val(x->val, offset);
         } else if (auto x = std::dynamic_pointer_cast<BigintLit>(node)) {
             std::cout << "BIGINT_LIT\n";
+            print_val(x->val, offset);
+        } else if (auto x = std::dynamic_pointer_cast<DatetimeLit>(node)) {
+            std::cout << "DATETIME_LIT\n";
             print_val(x->val, offset);
         } else if (auto x = std::dynamic_pointer_cast<SetClause>(node)) {
             std::cout << "SET_CLAUSE\n";

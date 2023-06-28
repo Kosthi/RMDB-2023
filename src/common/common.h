@@ -37,6 +37,7 @@ struct Value {
         long long bigint_val;
     };
     std::string str_val;  // string value
+    DateTime datetime_val;  // datetime value
 
     std::shared_ptr<RmRecord> raw;  // raw record buffer
 
@@ -60,6 +61,11 @@ struct Value {
         str_val = std::move(str_val_);
     }
 
+    void set_datetime(DateTime datetime_val_) {
+        type = TYPE_DATETIME;
+        datetime_val = datetime_val_;
+    }
+
     void init_raw(int len) {
         assert(raw == nullptr);
         raw = std::make_shared<RmRecord>(len);
@@ -78,6 +84,9 @@ struct Value {
             }
             memset(raw->data, 0, len);
             memcpy(raw->data, str_val.c_str(), str_val.size());
+        } else if (type == TYPE_DATETIME) {
+            assert(len == sizeof(DateTime));
+            *(DateTime *)(raw->data) = datetime_val;
         }
     }
 };

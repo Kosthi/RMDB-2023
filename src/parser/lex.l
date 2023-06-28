@@ -14,6 +14,7 @@
 #include "ast.h"
 #include "yacc.tab.h"
 #include <iostream>
+#include <regex>
 
 // automatically update location
 #define YY_USER_ACTION \
@@ -41,6 +42,7 @@ value_int [+-]?[0-9]{1,9}
 value_float {sign}?{digit}+\.({digit}+)?
 value_string '[^']*'
 value_bigint [+-]?[0-9]{10,}
+value_datetime '[0-9]{4}-[0-9]{2}-[0-9]{2}[ ][0-9]{2}:[0-9]{2}:[0-9]{2}'
 single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 
 %x STATE_COMMENT
@@ -80,6 +82,7 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 "CHAR" { return CHAR; }
 "FLOAT" { return FLOAT; }
 "BIGINT" { return BIGINT; }
+"DATETIME" { return DATETIME; }
 "INDEX" { return INDEX; }
 "AND" { return AND; }
 "JOIN" {return JOIN;}
@@ -107,10 +110,6 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
     yylval->sv_float = atof(yytext);
     return VALUE_FLOAT;
 }
-{value_string} {
-    yylval->sv_str = std::string(yytext + 1, strlen(yytext) - 2);
-    return VALUE_STRING;
-}
 {value_bigint} {
     try {
         yylval->sv_bigint = std::stoll(yytext);
@@ -118,6 +117,24 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
     } catch (std::out_of_range& e) {
         std::cerr << e.what() << ", Bigint is out of range" << std::endl;
     }
+}
+{value_datetime} {
+    std::regex pattern("'[1-9][0-9]{3}-(0[1-9]|1[0-2])-([0-2][1-9]|3[0-1])[ ]([0-1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]'");
+    if (std::regex_match(yytext, pattern)) {
+        uint16_t y;
+        uint8_t month, d, h, m, s;
+        sscanf(yytext, "'%hu-%hhu-%hhu %hhu:%hhu:%hhu'", &y, &month, &d, &h, &m, &s);
+        DateTime dateTime = DateTime(y, month, d, h, m, s);
+        if (dateTime.valid()) {
+            yylval->sv_datetime = dateTime;
+            return VALUE_DATETIME;
+        }
+    }
+    std::cerr << "Datetime is out of range" << std::endl;
+}
+{value_string} {
+    yylval->sv_str = std::string(yytext + 1, strlen(yytext) - 2);
+    return VALUE_STRING;
 }
     /* EOF */
 <<EOF>> { return T_EOF; }

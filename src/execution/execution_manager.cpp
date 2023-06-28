@@ -32,7 +32,7 @@ const char *help_info = "Supported SQL syntax:\n"
                    "  UPDATE table_name SET column_name = value [, column_name = value ...] [WHERE where_clause]\n"
                    "  SELECT selector FROM table_name [WHERE where_clause]\n"
                    "type:\n"
-                   "  {INT | FLOAT | BIGINT | CHAR(n)}\n"
+                   "  {INT | FLOAT | BIGINT | DATETIME | CHAR(n)}\n"
                    "where_clause:\n"
                    "  condition [AND condition ...]\n"
                    "condition:\n"
@@ -167,6 +167,9 @@ void QlManager::select_from(std::unique_ptr<AbstractExecutor> executorTreeRoot, 
                 col_str = std::to_string(*(long long *)rec_buf);
             } else if (col.type == TYPE_STRING) {
                 col_str = std::string((char *)rec_buf, col.len);
+                col_str.resize(strlen(col_str.c_str()));
+            } else if (col.type == TYPE_DATETIME) {
+                col_str = ((DateTime *)rec_buf)->to_string();
                 col_str.resize(strlen(col_str.c_str()));
             }
             columns.push_back(col_str);
