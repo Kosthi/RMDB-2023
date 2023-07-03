@@ -27,6 +27,9 @@ struct Help : public TreeNode {
 struct ShowTables : public TreeNode {
 };
 
+struct ShowIndex : public TreeNode {
+};
+
 struct TxnBegin : public TreeNode {
 };
 

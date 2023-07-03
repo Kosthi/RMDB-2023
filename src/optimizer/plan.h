@@ -26,6 +26,7 @@ typedef enum PlanTag{
     T_DescTable,
     T_CreateTable,
     T_DropTable,
+    T_ShowIndex,
     T_CreateIndex,
     T_DropIndex,
     T_Insert,
@@ -172,7 +173,7 @@ class DDLPlan : public Plan
         std::vector<ColDef> cols_;
 };
 
-// help; show tables; desc tables; begin; abort; commit; rollback语句对应的plan
+// help; show tables; show index; desc tables; begin; abort; commit; rollback语句对应的plan
 class OtherPlan : public Plan
 {
     public:

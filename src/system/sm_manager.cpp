@@ -183,6 +183,24 @@ void SmManager::show_tables(Context* context) {
 }
 
 /**
+ * @description: 显示表的索引数据
+ * @param {string&} tab_name 表名称
+ * @param {Context*} context
+ */
+void SmManager::show_index(const std::string& tab_name, Context* context) {
+    std::fstream outfile;
+    outfile.open("output.txt", std::ios::out | std::ios::app);
+    for (auto& index : db_.tabs_[tab_name].indexes) {
+        outfile << "| " << tab_name << " | unique | (" << index.cols[0].name;
+        for (int i = 1; i < index.cols.size(); ++i) {
+            outfile << "," << index.cols[i].name;
+        }
+        outfile << ") |\n";
+    }
+    outfile.close();
+}
+
+/**
  * @description: 显示表的元数据
  * @param {string&} tab_name 表名称
  * @param {Context*} context 

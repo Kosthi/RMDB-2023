@@ -12,6 +12,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "ix_defs.h"
 #include "transaction/transaction.h"
+#include <shared_mutex>
 
 enum class Operation { FIND = 0, INSERT, DELETE };  // 三种操作：查找、插入、删除
 
@@ -29,8 +30,15 @@ inline int ix_compare(const char *a, const char *b, ColType type, int col_len) {
             float fb = *(float *)b;
             return (fa < fb) ? -1 : ((fa > fb) ? 1 : 0);
         }
+        case TYPE_BIGINT: {
+            long long al = *(long long *) a;
+            long long bl = *(long long *) b;
+            return al > bl ? 1 : ((al < bl) ? -1 : 0);
+        }
         case TYPE_STRING:
             return memcmp(a, b, col_len);
+        case TYPE_DATETIME:
+            return !(*(DateTime *)a == *(DateTime *)b);
         default:
             throw InternalError("Unexpected data type");
     }
@@ -57,6 +65,7 @@ class IxNodeHandle {
     IxPageHdr *page_hdr;            // page->data的第一部分，指针指向首地址，长度为sizeof(IxPageHdr)
     char *keys;                     // page->data的第二部分，指针指向首地址，长度为file_hdr->keys_size，每个key的长度为file_hdr->col_len
     Rid *rids;                      // page->data的第三部分，指针指向首地址
+    std::shared_mutex node_latch_;
 
    public:
     IxNodeHandle() = default;
@@ -74,6 +83,8 @@ class IxNodeHandle {
     int get_max_size() { return file_hdr->btree_order_ + 1; }
 
     int get_min_size() { return get_max_size() / 2; }
+
+    bool is_full() { return get_size() >= file_hdr->btree_order_; }
 
     int key_at(int i) { return *(int *)get_key(i); }
 

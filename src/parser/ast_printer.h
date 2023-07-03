@@ -91,6 +91,9 @@ private:
         } else if (auto x = std::dynamic_pointer_cast<DescTable>(node)) {
             std::cout << "DESC_TABLE\n";
             print_val(x->tab_name, offset);
+        } else if (auto x = std::dynamic_pointer_cast<ShowIndex>(node)) {
+            std::cout << "SHOW_INDEX\n";
+            print_val(x->tab_name, offset);
         } else if (auto x = std::dynamic_pointer_cast<CreateIndex>(node)) {
             std::cout << "CREATE_INDEX\n";
             print_val(x->tab_name, offset);

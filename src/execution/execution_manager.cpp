@@ -24,7 +24,9 @@ const char *help_info = "Supported SQL syntax:\n"
                    "  command ;\n"
                    "command:\n"
                    "  CREATE TABLE table_name (column_name type [, column_name type ...])\n"
+                   "  SHOW TABLES\n"
                    "  DROP TABLE table_name\n"
+                   "  SHOW INDEX FROM table_name\n"
                    "  CREATE INDEX table_name (column_name)\n"
                    "  DROP INDEX table_name (column_name)\n"
                    "  INSERT INTO table_name VALUES (value [, value ...])\n"
@@ -75,24 +77,26 @@ void QlManager::run_mutli_query(std::shared_ptr<Plan> plan, Context *context){
     }
 }
 
-// 执行help; show tables; desc table; begin; commit; abort;语句
+// 执行help; show tables; show index; desc table; begin; commit; abort;语句
 void QlManager::run_cmd_utility(std::shared_ptr<Plan> plan, txn_id_t *txn_id, Context *context) {
     if (auto x = std::dynamic_pointer_cast<OtherPlan>(plan)) {
         switch(x->tag) {
-            case T_Help:
-            {
+            case T_Help: {
                 memcpy(context->data_send_ + *(context->offset_), help_info, strlen(help_info));
                 *(context->offset_) = strlen(help_info);
                 break;
             }
-            case T_ShowTable:
-            {
+            case T_ShowTable: {
                 sm_manager_->show_tables(context);
                 break;
             }
-            case T_DescTable:
-            {
+            case T_DescTable: {
                 sm_manager_->desc_table(x->tab_name_, context);
+                break;
+            }
+            case T_ShowIndex:
+            {
+                sm_manager_->show_index(x->tab_name_, context);
                 break;
             }
             case T_Transaction_begin:
