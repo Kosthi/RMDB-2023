@@ -232,7 +232,8 @@ std::pair<IxNodeHandle *, bool> IxIndexHandle::find_leaf_page(const char *key, O
 //        transaction->append_index_latch_page_set(cur_nodeHandle->page);
 //    }
     while (!cur_nodeHandle->is_leaf_page()) {
-        assert(buffer_pool_manager_->unpin_page({fd_, cur_page_no}, false));
+        // assert(buffer_pool_manager_->unpin_page({fd_, cur_page_no}, false));
+        buffer_pool_manager_->unpin_page({fd_, cur_page_no}, false);
         cur_page_no = cur_nodeHandle->internal_lookup(key);
         cur_nodeHandle = fetch_node(cur_page_no);
         // 对于查找操作，进入树的每一层结点都是先在当前结点获取读锁，然后释放父结点读锁
@@ -277,7 +278,8 @@ Iid IxIndexHandle::upper_bound_for_GT(const char *key) {
         if (cmp > 0 && pos == 1) pos = 0;
         iid = {leaf->get_page_no(), pos};
     }
-    assert(buffer_pool_manager_->unpin_page(leaf->get_page_id(), false));
+    // assert(buffer_pool_manager_->unpin_page(leaf->get_page_id(), false));
+    buffer_pool_manager_->unpin_page(leaf->get_page_id(), false);
     return iid;
 }
 
@@ -409,12 +411,14 @@ void IxIndexHandle::insert_into_parent(IxNodeHandle *old_node, const char *key, 
         // 如果父亲结点仍需要继续分裂，则进行递归插入
         if (parent_node->is_full()) {
             auto new_parent_node = split(parent_node);
-            assert(buffer_pool_manager_->unpin_page(new_parent_node->get_page_id(), true));
+            // assert(buffer_pool_manager_->unpin_page(new_parent_node->get_page_id(), true));
             insert_into_parent(parent_node, new_parent_node->get_key(0), new_parent_node, transaction);
             // assert(buffer_pool_manager_->unpin_page(new_parent_node->get_page_id(), true));
+            buffer_pool_manager_->unpin_page(new_parent_node->get_page_id(), true);
         }
         // unpin pages !
-        assert(buffer_pool_manager_->unpin_page(parent_node->get_page_id(), true));
+        // assert(buffer_pool_manager_->unpin_page(parent_node->get_page_id(), true));
+        buffer_pool_manager_->unpin_page(parent_node->get_page_id(), true);
     }
 }
 
@@ -435,13 +439,15 @@ page_id_t IxIndexHandle::insert_entry(const char *key, const Rid &value, Transac
 
     auto [leaf_node, is_root_latched] = find_leaf_page(key, Operation::INSERT, transaction, false);
     leaf_node->insert(key, value);
-    assert(buffer_pool_manager_->unpin_page(leaf_node->get_page_id(), true));
+    // assert(buffer_pool_manager_->unpin_page(leaf_node->get_page_id(), true));
+    buffer_pool_manager_->unpin_page(leaf_node->get_page_id(), true);
     // leaf_node->node_latch_.unlock();
     if (leaf_node->get_size() >= file_hdr_->btree_order_) {
         auto new_leaf_node = split(leaf_node);
         // unpin outside!
         // assert(buffer_pool_manager_->unpin_page(leaf_node->get_page_id(), true));
-        assert(buffer_pool_manager_->unpin_page(new_leaf_node->get_page_id(), true));
+        // assert(buffer_pool_manager_->unpin_page(new_leaf_node->get_page_id(), true));
+        buffer_pool_manager_->unpin_page(new_leaf_node->get_page_id(), true);
         insert_into_parent(leaf_node, new_leaf_node->get_key(0), new_leaf_node, transaction);
         if (new_leaf_node->get_next_leaf() == IX_LEAF_HEADER_PAGE) {
             file_hdr_->last_leaf_ = new_leaf_node->get_page_no();
@@ -473,7 +479,8 @@ bool IxIndexHandle::delete_entry(const char *key, Transaction *transaction) {
     int pre = leaf_node->page_hdr->num_key;
     // 删除失败
     if (pre == leaf_node->remove(key)) {
-        assert(buffer_pool_manager_->unpin_page(leaf_node->get_page_id(), false));
+        // assert(buffer_pool_manager_->unpin_page(leaf_node->get_page_id(), false));
+        buffer_pool_manager_->unpin_page(leaf_node->get_page_id(), false);
         return false;
     }
     // assert(buffer_pool_manager_->unpin_page(leaf_node->get_page_id(), true));
@@ -482,7 +489,8 @@ bool IxIndexHandle::delete_entry(const char *key, Transaction *transaction) {
     maintain_parent(leaf_node);
     // leaf_node->erase_pair(leaf_node->lower_bound(key));
     coalesce_or_redistribute(leaf_node, transaction, &is_root_latched);
-    assert(buffer_pool_manager_->unpin_page(leaf_node->get_page_id(), true));
+    // assert(buffer_pool_manager_->unpin_page(leaf_node->get_page_id(), true));
+    buffer_pool_manager_->unpin_page(leaf_node->get_page_id(), true);
     // 暂时不用事务
     // transaction->append_index_deleted_page(leaf_node->page);
     return true;
@@ -534,15 +542,24 @@ bool IxIndexHandle::coalesce_or_redistribute(IxNodeHandle *node, Transaction *tr
         redistribute(sibling, node, parent, node_rank);
         // unpin pages!
         // assert(buffer_pool_manager_->unpin_page(node->get_page_id(), true));
-        assert(buffer_pool_manager_->unpin_page(parent->get_page_id(), true));
-        assert(buffer_pool_manager_->unpin_page(sibling->get_page_id(), true));
+
+        // assert(buffer_pool_manager_->unpin_page(parent->get_page_id(), true));
+        // assert(buffer_pool_manager_->unpin_page(sibling->get_page_id(), true));
+        buffer_pool_manager_->unpin_page(parent->get_page_id(), true);
+        buffer_pool_manager_->unpin_page(sibling->get_page_id(), true);
         return false;
     }
 
     coalesce(&sibling, &node, &parent, node_rank, nullptr, nullptr);
     // assert(buffer_pool_manager_->unpin_page(parent->get_page_id(), true));
-    if (!node_rank) assert(buffer_pool_manager_->unpin_page(node->get_page_id(), true));
-    else assert(buffer_pool_manager_->unpin_page(sibling->get_page_id(), true));
+    if (!node_rank) {
+        // assert(buffer_pool_manager_->unpin_page(node->get_page_id(), true));
+        buffer_pool_manager_->unpin_page(node->get_page_id(), true);
+    }
+    else {
+        // assert(buffer_pool_manager_->unpin_page(sibling->get_page_id(), true));
+        buffer_pool_manager_->unpin_page(sibling->get_page_id(), true);
+    }
     return true;
 }
 
@@ -564,7 +581,8 @@ bool IxIndexHandle::adjust_root(IxNodeHandle *old_root_node) {
         auto new_root = fetch_node(old_root_node->value_at(0));
         new_root->set_parent_page_no(IX_NO_PAGE);
         file_hdr_->root_page_ = new_root->get_page_no();
-        assert(buffer_pool_manager_->unpin_page(new_root->get_page_id(), true));
+        // assert(buffer_pool_manager_->unpin_page(new_root->get_page_id(), true));
+        buffer_pool_manager_->unpin_page(new_root->get_page_id(), true);
         return true;
     }
     else if (old_root_node->is_leaf_page() && old_root_node->get_size() == 0) {
@@ -682,14 +700,17 @@ bool IxIndexHandle::coalesce(IxNodeHandle **neighbor_node, IxNodeHandle **node, 
     if ((*parent)->get_size() < file_hdr_->btree_order_ / 2) {
         // root_latch_.unlock();
         if (coalesce_or_redistribute(*parent, nullptr, nullptr)) {
-            assert(buffer_pool_manager_->unpin_page((*parent)->get_page_id(), true));
+            // assert(buffer_pool_manager_->unpin_page((*parent)->get_page_id(), true));
+            buffer_pool_manager_->unpin_page((*parent)->get_page_id(), true);
             return true;
         } else {
-            assert(buffer_pool_manager_->unpin_page((*parent)->get_page_id(), true));
+            // assert(buffer_pool_manager_->unpin_page((*parent)->get_page_id(), true));
+            buffer_pool_manager_->unpin_page((*parent)->get_page_id(), true);
             return false;
         }
     }
-    assert(buffer_pool_manager_->unpin_page((*parent)->get_page_id(), true));
+    //assert(buffer_pool_manager_->unpin_page((*parent)->get_page_id(), true));
+    buffer_pool_manager_->unpin_page((*parent)->get_page_id(), true);
     return false;
 }
 
@@ -707,7 +728,8 @@ Rid IxIndexHandle::get_rid(const Iid &iid) const {
     if (iid.slot_no >= node->get_size()) {
         throw IndexEntryNotFoundError();
     }
-    assert(buffer_pool_manager_->unpin_page(node->get_page_id(), false));  // unpin it!
+    // assert(buffer_pool_manager_->unpin_page(node->get_page_id(), false));
+    buffer_pool_manager_->unpin_page(node->get_page_id(), false);// unpin it!
     return *node->get_rid(iid.slot_no);
 }
 
@@ -727,7 +749,8 @@ Iid IxIndexHandle::lower_bound(const char *key) {
 //    }
     int pos = leaf->lower_bound(key);
     auto iid = Iid{leaf->get_page_no(), pos};
-    assert(buffer_pool_manager_->unpin_page(leaf->get_page_id(), false));
+    // assert(buffer_pool_manager_->unpin_page(leaf->get_page_id(), false));
+    buffer_pool_manager_->unpin_page(leaf->get_page_id(), false);
     return iid;
 }
 
@@ -751,7 +774,8 @@ Iid IxIndexHandle::upper_bound(const char *key) {
     else {
         iid = {leaf->get_page_no(), pos};
     }
-    assert(buffer_pool_manager_->unpin_page(leaf->get_page_id(), false));
+    // assert(buffer_pool_manager_->unpin_page(leaf->get_page_id(), false));
+    buffer_pool_manager_->unpin_page(leaf->get_page_id(), false);
     return iid;
 }
 
@@ -764,7 +788,8 @@ Iid IxIndexHandle::upper_bound(const char *key) {
 Iid IxIndexHandle::leaf_end() const {
     IxNodeHandle *node = fetch_node(file_hdr_->last_leaf_);
     Iid iid = {.page_no = file_hdr_->last_leaf_, .slot_no = node->get_size()};
-    assert(buffer_pool_manager_->unpin_page(node->get_page_id(), false));  // unpin it!
+    // assert(buffer_pool_manager_->unpin_page(node->get_page_id(), false));
+    buffer_pool_manager_->unpin_page(node->get_page_id(), false);// unpin it!
     return iid;
 }
 
