@@ -38,7 +38,7 @@ inline int ix_compare(const char *a, const char *b, ColType type, int col_len) {
         case TYPE_STRING:
             return memcmp(a, b, col_len);
         case TYPE_DATETIME:
-            return !(*(DateTime *)a == *(DateTime *)b);
+            return *(DateTime *)a == *(DateTime *)b;
         default:
             throw InternalError("Unexpected data type");
     }
@@ -46,7 +46,12 @@ inline int ix_compare(const char *a, const char *b, ColType type, int col_len) {
 
 inline int ix_compare(const char* a, const char* b, const std::vector<ColType>& col_types, const std::vector<int>& col_lens) {
     int offset = 0;
-    for(size_t i = 0; i < col_types.size(); ++i) {
+    int tot_col_lens = 0;
+    for (int col_len : col_lens) { tot_col_lens += col_len; }
+    int fed_size = *(int*)(b + tot_col_lens);
+    fed_size = fed_size < col_lens.size() - 1 ? fed_size : col_lens.size() - 1;
+    if (fed_size == -1) fed_size = col_lens.size() - 1;
+    for(size_t i = 0; i <= fed_size; ++i) {
         int res = ix_compare(a + offset, b + offset, col_types[i], col_lens[i]);
         if(res != 0) return res;
         offset += col_lens[i];
@@ -215,6 +220,8 @@ class IxIndexHandle {
     Iid leaf_end() const;
 
     Iid leaf_begin() const;
+
+    Iid upper_bound_for_GT(const char*);
 
    private:
     // 辅助函数
