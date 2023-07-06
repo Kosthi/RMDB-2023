@@ -75,6 +75,29 @@ public:
         }
     }
 
+    void print_index(const std::vector<std::string> &index_str, Context *context) const {
+        assert(index_str.size() == num_cols);
+        for (auto col: index_str) {
+//            if (col.size() > COL_WIDTH) {
+//                col = col.substr(0, COL_WIDTH - 3) + "...";
+//            }
+            std::stringstream ss;
+            ss << "| " << col << " ";
+            if (context->ellipsis_ == false && *context->offset_ + RECORD_COUNT_LENGTH + ss.str().length() < BUFFER_LENGTH) {
+                memcpy(context->data_send_ + *(context->offset_), ss.str().c_str(), ss.str().length());
+                *(context->offset_) = *(context->offset_) + ss.str().length();
+            }
+            else {
+                context->ellipsis_ = true;
+            }
+        }
+        std::string str = "|\n";
+        if(context->ellipsis_ == false && *context->offset_ + RECORD_COUNT_LENGTH + str.length() < BUFFER_LENGTH) {
+            memcpy(context->data_send_ + *(context->offset_), str.c_str(), str.length());
+            *(context->offset_) = *(context->offset_) + str.length();
+        }
+    }
+
     static void print_record_count(size_t num_rec, Context *context) {
         // std::cout << "Total record(s): " << num_rec << '\n';
         std::string str = "";
