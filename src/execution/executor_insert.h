@@ -57,20 +57,52 @@ class InsertExecutor : public AbstractExecutor {
             val.init_raw(col.len);
             memcpy(rec.data + col.offset, val.raw->data, col.len);
         }
+
+        for (auto& index : tab_.indexes) {
+            // 进行唯一性检查
+            std::unordered_map<std::string, bool> map;
+            int offset = 0;
+            char *insert_data = new char[index.col_tot_len + 1];
+            *(insert_data + index.col_tot_len) = '\0';
+            for (auto &col: index.cols) {
+                memcpy(insert_data + offset, rec.data + col.offset, col.len);
+                offset += col.len;
+            }
+            map.insert({insert_data, 1});
+            delete[] insert_data;
+            for (RmScan rmScan(fh_); !rmScan.is_end(); rmScan.next()) {
+                auto recc = fh_->get_record(rmScan.rid(), context_);
+                insert_data = new char[index.col_tot_len + 1];
+                *(insert_data + index.col_tot_len) = '\0';
+                offset = 0;
+                for (auto &col: index.cols) {
+                    memcpy(insert_data + offset, recc->data + col.offset, col.len);
+                    offset += col.len;
+                }
+                if (map.count(insert_data)) {
+                    throw InternalError("不满足唯一性约束！");
+                }
+                map.insert({insert_data, 1});
+                delete[] insert_data;
+            }
+            map.clear();
+        }
+
         // Insert into record file
         rid_ = fh_->insert_record(rec.data, context_);
-        
         // Insert into index
-        for(size_t i = 0; i < tab_.indexes.size(); ++i) {
-            auto& index = tab_.indexes[i];
+        int idx = -1;
+        for (auto& index : tab_.indexes) {
             auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
-            char* key = new char[index.col_tot_len];
+            char* key = new char[index.col_tot_len + 4];
+            memcpy(key + index.col_tot_len, &idx, 4);
             int offset = 0;
-            for(size_t i = 0; i < index.col_num; ++i) {
+            for (size_t i = 0; i < index.col_num; ++i) {
                 memcpy(key + offset, rec.data + index.cols[i].offset, index.cols[i].len);
                 offset += index.cols[i].len;
             }
             ih->insert_entry(key, rid_, context_->txn_);
+            delete[] key;
         }
         return nullptr;
     }
