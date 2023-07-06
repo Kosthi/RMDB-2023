@@ -316,7 +316,7 @@ void SmManager::drop_table(const std::string& tab_name, Context* context) {
             delete[] delete_data;
         }
 
-        ix_manager_->close_index(ihs_[index_name].get());
+        ix_manager_->close_index(ih.get());
         ix_manager_->destroy_index(tab_name, index.cols);
         ihs_.erase(index_name);
     }
