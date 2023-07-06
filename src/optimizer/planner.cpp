@@ -23,15 +23,67 @@ See the Mulan PSL v2 for more details. */
 #include "record_printer.h"
 
 // 目前的索引匹配规则为：完全匹配索引字段，且全部为单点查询，不会自动调整where条件的顺序
-bool Planner::get_index_cols(std::string tab_name, std::vector<Condition> curr_conds, std::vector<std::string>& index_col_names) {
-    index_col_names.clear();
-    for(auto& cond: curr_conds) {
-        if(cond.is_rhs_val && cond.op == OP_EQ && cond.lhs_col.tab_name.compare(tab_name) == 0)
-            index_col_names.push_back(cond.lhs_col.col_name);
+// 根据已经建立的索引确定最优索引字段
+// 目前的索引匹配规则为：最左匹配规则，尽可能匹配索引字段，联合查询，根据匹配索引调整where条件的顺序
+// 如果有col < 5 and col >=5 该怎么做，index会被全部扫描，但只需要匹配到一个col就能退出了
+// 找到一个col，遍历清除一样的col_name
+bool Planner::get_index_cols(std::string tab_name, std::vector<Condition>& curr_conds, std::vector<std::string>& index_col_names) {
+    // 没有where条件，遍历整个表
+    if (curr_conds.empty()) return false;
+    auto& tab_meta = sm_manager_->db_.get_table(tab_name);
+    // 最佳匹配的已经建立的索引
+    IndexMeta best_Index;
+    // 最佳匹配次数
+    int best_cnt = 0;
+    for (auto& index : tab_meta.indexes) {
+        int cnt = 0;
+        for (int col_idx = 0; col_idx < index.cols.size(); ++col_idx) {
+            auto pos = std::find_if(curr_conds.begin(), curr_conds.end(), [&](const Condition &cond) {
+                return index.cols[col_idx].name == cond.lhs_col.col_name && cond.is_rhs_val && cond.lhs_col.tab_name.compare(tab_name) == 0;
+            });
+            // 不等号直接终止
+            // 范围查询只保留第一次
+            if (pos != curr_conds.end() && pos->op != OP_NE) {
+                // 匹配成功+1
+                cnt++;
+            }
+            if (col_idx == index.cols.size() - 1 || pos->op != OP_EQ || pos == curr_conds.end() || cnt == curr_conds.size()) {
+                // 情况2
+                // 考虑EQ EQ NE 和 EQ EQ，选择匹配索引更多的，便于索引下推，减少io
+                if (cnt > best_cnt || (cnt == best_cnt && index.cols.size() > best_Index.cols.size())) {
+                    best_cnt = cnt;
+                    best_Index = index;
+                }
+                break;
+            }
+        }
+//        if (cnt == curr_conds.size()) {
+//            break;
+//        }
     }
-    TabMeta& tab = sm_manager_->db_.get_table(tab_name);
-    if(tab.is_index(index_col_names)) return true;
-    return false;
+    if (best_cnt == 0) return false;
+    std::vector<Condition> best_conds;
+    for (auto& col : best_Index.cols) {
+        index_col_names.emplace_back(col.name);
+        // 优化where顺序
+        auto pos = std::find_if(curr_conds.begin(), curr_conds.end(), [&](const Condition &cond) {
+            return col.name == cond.lhs_col.col_name && cond.lhs_col.tab_name.compare(tab_name) == 0;
+        });
+        if (pos != curr_conds.end()) {
+            best_conds.emplace_back(*pos);
+            curr_conds.erase(pos);
+        }
+    }
+    // 剩下的conds
+    for (auto& cond : curr_conds) {
+        best_conds.emplace_back(cond);
+    }
+    curr_conds = best_conds;
+    return true;
+//    for(auto& cond: curr_conds) {
+//        if(cond.is_rhs_val && cond.op == OP_EQ && cond.lhs_col.tab_name.compare(tab_name) == 0)
+//            index_col_names.push_back(cond.lhs_col.col_name);
+//    }
 }
 
 /**
@@ -149,6 +201,7 @@ std::shared_ptr<Plan> Planner::make_one_rel(std::shared_ptr<Query> query)
         auto curr_conds = pop_conds(query->conds, tables[i]);
         // int index_no = get_indexNo(tables[i], curr_conds);
         std::vector<std::string> index_col_names;
+        // 根据已经建立的索引确定最优索引字段
         bool index_exist = get_index_cols(tables[i], curr_conds, index_col_names);
         if (index_exist == false) {  // 该表没有索引
             index_col_names.clear();
