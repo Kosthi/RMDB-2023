@@ -114,8 +114,10 @@ public:
         return os;
     }
 
-    bool operator==(const DateTime& dateTime) const {
-        return this->to_string() == dateTime.to_string();
+    int operator==(const DateTime& dateTime) const {
+        std::string dt1 = this->to_string();
+        std::string dt2 = dateTime.to_string();
+        return (dt1 > dt2) ? 1 : (dt1 < dt2 ? -1 : 0);
     }
 
     uint16_t year() const { return m_year; }
