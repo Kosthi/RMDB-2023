@@ -348,28 +348,39 @@ void SmManager::create_index(const std::string& tab_name, const std::vector<std:
     }
 
     // 进行唯一性检查
+    // 用不了哈希，试插法
     auto fh = fhs_[tab_name].get();
-    std::unordered_map<std::string, bool> map;
-    for (RmScan rmScan(fh); !rmScan.is_end(); rmScan.next()) {
-        auto rec = fh->get_record(rmScan.rid(), context);
-        char* insert_data = new char[tot_col_len + 1];
-        *(insert_data + tot_col_len) = '\0';
-        int offset = 0;
-        for (auto &col: cols) {
-            memcpy(insert_data + offset, rec->data + col.offset, col.len);
-            offset += col.len;
-        }
-        if (map.count(insert_data)) {
-            throw InternalError("不满足唯一性约束！");
-        }
-        map.insert({insert_data, 1});
-        delete[] insert_data;
-    }
-    map.clear();
+    // std::map<int, bool> map;
+//    for (RmScan rmScan(fh); !rmScan.is_end(); rmScan.next()) {
+//        auto rec = fh->get_record(rmScan.rid(), context);
+//        char* insert_data = new char[tot_col_len + 1];
+//        // *(insert_data + tot_col_len) = '\0';
+//        // char op = '\0';
+//        // memcpy(insert_data + tot_col_len, &op, 1);
+//        int offset = 0;
+//        std::string s = insert_data;
+//        for (auto &col: cols) {
+//            memcpy(insert_data + offset, rec->data + col.offset, col.len);
+//            offset += col.len;
+//        }
+//        // auto it = map.find(*insert_data);
+////        if (it != map.end()) {
+////            throw InternalError("不满足唯一性约束！");
+////        }
+//        if (map.count(*(int*)insert_data)) {
+//            throw InternalError("不满足唯一性约束！");
+//        }
+//        s = insert_data;
+//        // std::cerr << insert_data << std::endl;
+//        // map.insert({*(int*)insert_data, 1});
+//        delete[] insert_data;
+//    }
+    // map.clear();
 
     ix_manager_->create_index(tab_name, cols);
     auto ih = ix_manager_->open_index(tab_name, cols);
     int idx = -1;
+    std::vector<char*> insert_datas;
     for (RmScan rmScan(fh); !rmScan.is_end(); rmScan.next()) {
         auto rec = fh->get_record(rmScan.rid(), context);
         char* insert_data = new char[tot_col_len + 4];
@@ -379,9 +390,24 @@ void SmManager::create_index(const std::string& tab_name, const std::vector<std:
             memcpy(insert_data + offset, rec->data + col.offset, col.len);
             offset += col.len;
         }
+        std::vector<Rid> rid;
+        if (ih->get_value(insert_data, &rid, context->txn_)) {
+            for (auto& inse_data : insert_datas) {
+                ih->delete_entry(inse_data, context->txn_);
+                delete[] inse_data;
+            }
+            ix_manager_->close_index(ih.get());
+            ix_manager_->destroy_index(tab_name, col_names);
+            throw InternalError("不满足唯一性约束！");
+        }
+        insert_datas.emplace_back(insert_data);
         ih->insert_entry(insert_data, rmScan.rid(), context->txn_);
+    }
+
+    for (auto& insert_data : insert_datas) {
         delete[] insert_data;
     }
+
     auto index_name = ix_manager_->get_index_name(tab_name, col_names);
     if (ihs_.count(index_name)) {
         throw IndexExistsError(tab_name, col_names);

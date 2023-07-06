@@ -81,38 +81,52 @@ class UpdateExecutor : public AbstractExecutor {
 
             for (auto &index: tab_.indexes) {
                 // 进行唯一性检查
-                std::unordered_map<std::string, bool> map;
+                std::vector<char*> data_pool;
+                // std::unordered_map<std::string, bool> map;
                 int offset = 0;
-                char *insert_data = new char[index.col_tot_len + 1];
-                *(insert_data + index.col_tot_len) = '\0';
+                char *insert_data = new char[index.col_tot_len];
+                // *(insert_data + index.col_tot_len) = '\0';
                 for (auto &col: index.cols) {
                     memcpy(insert_data + offset, update_record.data + col.offset, col.len);
                     offset += col.len;
                 }
-                map.insert({insert_data, 1});
-                delete[] insert_data;
+                data_pool.emplace_back(insert_data);
+                // map.insert({insert_data, 1});
+                // delete[] insert_data;
                 for (RmScan rmScan(fh_); !rmScan.is_end(); rmScan.next()) {
                     if (rmScan.rid() == rid) continue;
                     auto recc = fh_->get_record(rmScan.rid(), context_);
-                    insert_data = new char[index.col_tot_len + 1];
-                    *(insert_data + index.col_tot_len) = '\0';
+                    insert_data = new char[index.col_tot_len];
                     offset = 0;
                     for (auto &col: index.cols) {
                         memcpy(insert_data + offset, recc->data + col.offset, col.len);
                         offset += col.len;
                     }
-                    if (map.count(insert_data)) {
-                        // 恢复所有已经更新的记录
+                    auto it = std::find_if(data_pool.begin(), data_pool.end(), [&](const char* data) {
+                        return memcmp(data, insert_data, index.col_tot_len) == 0;
+                    });
+                    if (it != data_pool.end()) {
+                        for (auto& buf : data_pool) {
+                            delete[] buf;
+                        }
                         for (size_t i = 0; i < old_records.size() - 1; ++i) {
                             fh_->update_record(old_rids[i], old_records[i].data, context_);
                         }
                         throw InternalError("不满足唯一性约束！");
                     }
-                    map.insert({insert_data, 1});
-                    delete[] insert_data;
+                    data_pool.emplace_back(insert_data);
+//                    if (map.count(insert_data)) {
+//                        // 恢复所有已经更新的记录
+//                        throw InternalError("不满足唯一性约束！");
+//                    }
+//                    map.insert({insert_data, 1});
+// delete[] insert_data;
                 }
-                map.clear();
+                // map.clear();
                 // 尝试更新记录
+                for (auto& buf : data_pool) {
+                    delete[] buf;
+                }
             }
             fh_->update_record(rid, update_record.data, context_);
             new_record.emplace_back(update_record);
