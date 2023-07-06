@@ -25,7 +25,7 @@ class IndexScanExecutor : public AbstractExecutor {
     std::vector<ColMeta> cols_;                 // 需要读取的字段
     size_t len_;                                // 选取出来的一条记录的长度
     std::vector<Condition> fed_conds_;          // 扫描条件，和conds_字段相同
-
+    // 优化后
     std::vector<std::string> index_col_names_;  // index scan涉及到的索引包含的字段
     IndexMeta index_meta_;                      // index scan涉及到的索引元数据
 
@@ -62,19 +62,152 @@ class IndexScanExecutor : public AbstractExecutor {
             }
         }
         fed_conds_ = conds_;
+        std::reverse(fed_conds_.begin(), fed_conds_.end());
     }
 
     void beginTuple() override {
-        
+        // get b+tree
+        auto index_name = sm_manager_->get_ix_manager()->get_index_name(tab_name_, index_col_names_);
+        auto ih = sm_manager_->ihs_[index_name].get();
+        Iid lower = ih->leaf_begin(), upper = ih->leaf_end();
+        // 构造索引key
+        char* key = new char[index_meta_.col_tot_len + 4];
+        int offset = 0;
+        int idx = 0;
+        for (; idx < index_meta_.cols.size(); ++idx) {
+            memcpy(key + offset, conds_[idx].rhs_val.raw->data, index_meta_.cols[idx].len);
+            offset += index_meta_.cols[idx].len;
+            fed_conds_.pop_back();
+            if (conds_[idx].op != OP_EQ || idx + 1 == conds_.size()) {
+                idx++;
+                break;
+            }
+        }
+        idx--;
+        memcpy(key + index_meta_.col_tot_len, &idx, 4);
+        if (conds_[idx].op == OP_EQ) {
+            lower = ih->lower_bound(key);
+            upper = ih->upper_bound_for_GT(key);
+        }
+        else if (conds_[idx].op == OP_GE) {
+            lower = ih->lower_bound(key);
+        }
+        else if (conds_[idx].op == OP_LE) {
+            upper = ih->upper_bound_for_GT(key);
+        }
+        else if (conds_[idx].op == OP_GT) {
+            lower = ih->upper_bound_for_GT(key);
+        }
+        else if (conds_[idx].op == OP_LT) {
+            upper = ih->lower_bound(key);
+        }
+        delete[] key;
+        scan_ = std::make_unique<IxScan>(ih, lower, upper, sm_manager_->get_bpm());
+        while (!scan_->is_end()) {
+            rid_ = scan_->rid();
+            auto rec = fh_->get_record(rid_, context_);
+            if (cmp_conds(rec.get(), fed_conds_, cols_)) {
+                break;
+            }
+            scan_->next();
+        }
     }
 
     void nextTuple() override {
-        
+        scan_->next();
+        while (!scan_->is_end()) {
+            rid_ = scan_->rid();
+            auto rec = fh_->get_record(rid_, context_);
+            if (cmp_conds(rec.get(), fed_conds_, cols_)) {
+                break;
+            }
+            scan_->next();
+        }
     }
 
     std::unique_ptr<RmRecord> Next() override {
-        return nullptr;
+        return fh_->get_record(rid_, context_);
     }
 
     Rid &rid() override { return rid_; }
+
+    const std::vector<ColMeta> &cols() const override { return cols_; }
+
+    bool is_end() const override { return scan_->is_end(); }
+
+    size_t tupleLen() const override { return len_; }
+
+    /**
+    * @description: 比较数据数值
+    *
+    * @return std::unique_ptr<RmRecord>
+    */
+    static int compare(const char* a, const char* b, int col_len, ColType col_type) {
+        switch (col_type) {
+            case TYPE_INT: {
+                int ai = *(int *) a;
+                int bi = *(int *) b;
+                return ai > bi ? 1 : ((ai < bi) ? -1 : 0);
+            }
+            case TYPE_FLOAT: {
+                double af = *(double *) a;
+                double bf = *(double *) b;
+                return af > bf ? 1 : ((af < bf) ? -1 : 0);
+            }
+            case TYPE_BIGINT: {
+                long long al = *(long long *) a;
+                long long bl = *(long long *) b;
+                return al > bl ? 1 : ((al < bl) ? -1 : 0);
+            }
+            case TYPE_STRING:
+                return memcmp(a, b, col_len);
+            case TYPE_DATETIME:
+                return *(DateTime *)a == *(DateTime *)b;
+            default:
+                throw InternalError("Unexpected data type");
+        }
+    }
+
+    // 判断是否满足单个谓词条件
+    bool cmp_cond(const RmRecord* rec, const Condition& cond,  const std::vector<ColMeta>& rec_cols) {
+        // 提取左值与右值的数据和类型
+        auto lhs_col_meta = get_col(rec_cols, cond.lhs_col);
+        char* lhs_data = rec->data + lhs_col_meta->offset;
+        char* rhs_data;
+        ColType rhs_type;
+
+        // rhs is val
+        if (cond.is_rhs_val) {
+            rhs_type = cond.rhs_val.type;
+            rhs_data = cond.rhs_val.raw->data;
+        }
+        else {
+            // rhs is col
+            auto rhs_col_meta = get_col(rec_cols, cond.rhs_col);
+            rhs_type = rhs_col_meta->type;
+            rhs_data = rec->data + rhs_col_meta->offset;
+        }
+        // 判断左右值数据类型是否相同
+        if (lhs_col_meta->type != rhs_type) {
+            throw IncompatibleTypeError(coltype2str(lhs_col_meta->type), coltype2str(rhs_type));
+        }
+        int cmp = compare(lhs_data, rhs_data, lhs_col_meta->len, rhs_type);
+        switch (cond.op) {
+            case OP_EQ: return cmp == 0;
+            case OP_NE: return cmp != 0;
+            case OP_LT: return cmp < 0;
+            case OP_GT: return cmp > 0;
+            case OP_LE: return cmp <= 0;
+            case OP_GE: return cmp >= 0;
+            default:
+                throw InternalError("Unexpected op type");
+        }
+    }
+
+    // 判断是否满足所有谓词条件
+    bool cmp_conds(const RmRecord* rec, const std::vector<Condition>& conds, const std::vector<ColMeta>& rec_cols) {
+        return std::all_of(conds.begin(), conds.end(), [&](const Condition &cond) {
+            return cmp_cond(rec, cond, rec_cols);
+        });
+    }
 };
