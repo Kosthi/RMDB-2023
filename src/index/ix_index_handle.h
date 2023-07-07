@@ -89,7 +89,7 @@ class IxNodeHandle {
 
     int get_min_size() { return get_max_size() / 2; }
 
-    bool is_full() { return get_size() >= file_hdr->btree_order_; }
+    bool is_full() { return get_size() >= get_max_size(); }
 
     int key_at(int i) { return *(int *)get_key(i); }
 
@@ -187,6 +187,10 @@ class IxIndexHandle {
 
    public:
     IxIndexHandle(DiskManager *disk_manager, BufferPoolManager *buffer_pool_manager, int fd);
+
+    int get_max_size() { return file_hdr_->btree_order_ + 1; }
+
+    int get_min_size() { return get_max_size() / 2; }
 
     // for search
     bool get_value(const char *key, std::vector<Rid> *result, Transaction *transaction);
