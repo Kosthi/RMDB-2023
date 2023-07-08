@@ -40,15 +40,29 @@ class UpdateExecutor : public AbstractExecutor {
     std::unique_ptr<RmRecord> Next() override {
         // 使用索引 更新表上的所有索引
         // 更新方式 在B+树上，删除旧的值，插入新值
+
+        // 如果满足谓词条件的记录有多条，则更新的字段必须不是索引
+        // 因为会对所有满足谓词条件的记录执行一样的更新操作
+        if (rids_.size() > 1) {
+            for (auto& clause : set_clauses_) {
+                for (auto index : tab_.indexes) {
+                    auto pos = std::find_if(index.cols.begin(), index.cols.end(), [&](const ColMeta& col) {
+                        return col.name == clause.lhs.col_name;
+                    });
+                    if (pos != index.cols.end()) {
+                        throw InternalError("不满足唯一性约束！");
+                    }
+                }
+            }
+        }
         int idx = -1;
         std::vector<RmRecord> old_records, new_record;
         std::vector<Rid> old_rids;
         for (auto& rid : rids_) {
-            auto record = fh_->get_record(rid, context_);
-            old_records.emplace_back(*record.get());
+            auto old_record = fh_->get_record(rid, context_);
+            old_records.emplace_back(*old_record.get());
             old_rids.emplace_back(rid);
-            RmRecord update_record = *record.get();
-            char *old_record = record->data;
+            RmRecord update_record = *old_record.get();
             for (auto &clause: set_clauses_) {
                 auto lhs_col_meta = get_col(tab_.cols, clause.lhs);
                 if (lhs_col_meta->type == TYPE_FLOAT && clause.rhs.type == TYPE_INT) {
@@ -79,90 +93,82 @@ class UpdateExecutor : public AbstractExecutor {
                 memcpy(update_record.data + lhs_col_meta->offset, clause.rhs.raw->data, clause.rhs.raw->size);
             }
 
-            for (auto &index: tab_.indexes) {
-                // 进行唯一性检查
-                std::vector<char*> data_pool;
-                // std::unordered_map<std::string, bool> map;
-                int offset = 0;
-                char *insert_data = new char[index.col_tot_len];
-                // *(insert_data + index.col_tot_len) = '\0';
-                for (auto &col: index.cols) {
-                    memcpy(insert_data + offset, update_record.data + col.offset, col.len);
-                    offset += col.len;
-                }
-                data_pool.emplace_back(insert_data);
-                // map.insert({insert_data, 1});
-                // delete[] insert_data;
-                for (RmScan rmScan(fh_); !rmScan.is_end(); rmScan.next()) {
-                    if (rmScan.rid() == rid) continue;
-                    auto recc = fh_->get_record(rmScan.rid(), context_);
-                    insert_data = new char[index.col_tot_len];
-                    offset = 0;
+            std::vector<Rid> rid_;
+            // 只有rids_只有一条才需要检查更新唯一索引，否则更新字段没有索引，不需要更新索引，直接更新记录
+            if (rids_.size() == 1) {
+                for (auto &index: tab_.indexes) {
+                    // 进行唯一性检查
+                    auto ih = sm_manager_->ihs_.at(
+                            sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
+                    char *update_data = new char[index.col_tot_len + 4];
+                    memcpy(update_data + index.col_tot_len, &idx, 4);
+                    int offset = 0;
                     for (auto &col: index.cols) {
-                        memcpy(insert_data + offset, recc->data + col.offset, col.len);
+                        memcpy(update_data + offset, update_record.data + col.offset, col.len);
                         offset += col.len;
                     }
-                    auto it = std::find_if(data_pool.begin(), data_pool.end(), [&](const char* data) {
-                        return memcmp(data, insert_data, index.col_tot_len) == 0;
-                    });
-                    if (it != data_pool.end()) {
-                        for (auto& buf : data_pool) {
-                            delete[] buf;
+                    if (ih->get_value(update_data, &rid_, context_->txn_)) {
+                        if (rid_.back() != rid) {
+                            // 恢复
+//                        for (size_t i = 0; i < old_records.size() - 1; ++i) {
+//                            fh_->update_record(old_rids[i], old_records[i].data, context_);
+//                        }
+                            throw InternalError("不满足唯一性约束！");
                         }
-                        for (size_t i = 0; i < old_records.size() - 1; ++i) {
-                            fh_->update_record(old_rids[i], old_records[i].data, context_);
-                        }
-                        throw InternalError("不满足唯一性约束！");
                     }
-                    data_pool.emplace_back(insert_data);
-//                    if (map.count(insert_data)) {
-//                        // 恢复所有已经更新的记录
-//                        throw InternalError("不满足唯一性约束！");
-//                    }
-//                    map.insert({insert_data, 1});
-// delete[] insert_data;
                 }
-                // map.clear();
-                // 尝试更新记录
-                for (auto& buf : data_pool) {
-                    delete[] buf;
+                // 通过检查，更新索引
+                for (auto &index: tab_.indexes) {
+                    auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
+                    char* update_data = new char[index.col_tot_len + 4];
+                    char* old_data = new char[index.col_tot_len + 4];
+                    memcpy(update_data + index.col_tot_len, &idx, 4);
+                    memcpy(old_data + index.col_tot_len, &idx, 4);
+                    int offset = 0;
+                    for (auto &col: index.cols) {
+                        memcpy(update_data + offset, update_record.data + col.offset, col.len);
+                        memcpy(old_data + offset, old_record->data + col.offset, col.len);
+                        offset += col.len;
+                    }
+                    assert(ih->delete_entry(old_data, context_->txn_));
+                    ih->insert_entry(update_data, rid, context_->txn_);
                 }
             }
+            // new_record.emplace_back(update_record);
             fh_->update_record(rid, update_record.data, context_);
-            new_record.emplace_back(update_record);
-        }
-
-        if (tab_.indexes.empty()) return nullptr;
-        for (size_t i = 0; i < rids_.size(); ++i) {
-            auto old_record = old_records[i];
-            auto update_record = new_record[i];
-            // 更新索引
-            // 没必要? 优化 索引不包含set的任何字段
-            for (auto& index : tab_.indexes) {
-                // std::find_if(index.cols.begin(), index.cols.end(),)
-                char* old_delete_rec = new char[index.col_tot_len + 4];
-                char* new_insert_rec = new char[index.col_tot_len + 4];
-                memcpy(old_delete_rec + index.col_tot_len, &idx, 4);
-                memcpy(new_insert_rec + index.col_tot_len, &idx, 4);
-                auto index_name = sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols);
-                auto ih = sm_manager_->ihs_.at(index_name).get();
-                int offset = 0;
-                for (auto& index_col : index.cols) {
-                    memcpy(old_delete_rec + offset, old_record.data + index_col.offset, index_col.len);
-                    memcpy(new_insert_rec + offset, update_record.data + index_col.offset, index_col.len);
-                    offset += index_col.len;
-                }
-
-                if (!ih->delete_entry(old_delete_rec, context_->txn_)) {
-                    throw IndexEntryNotFoundError();
-                }
-                ih->insert_entry(new_insert_rec, rids_[i], context_->txn_);
-                delete[] old_delete_rec;
-                delete[] new_insert_rec;
-            }
         }
         return nullptr;
     }
+
+//        if (tab_.indexes.empty()) return nullptr;
+//        for (size_t i = 0; i < rids_.size(); ++i) {
+//            auto old_record = old_records[i];
+//            auto update_record = new_record[i];
+//            // 更新索引
+//            // 没必要? 优化 索引不包含set的任何字段
+//            for (auto& index : tab_.indexes) {
+//                // std::find_if(index.cols.begin(), index.cols.end(),)
+//                char* old_delete_rec = new char[index.col_tot_len + 4];
+//                char* new_insert_rec = new char[index.col_tot_len + 4];
+//                memcpy(old_delete_rec + index.col_tot_len, &idx, 4);
+//                memcpy(new_insert_rec + index.col_tot_len, &idx, 4);
+//                auto index_name = sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols);
+//                auto ih = sm_manager_->ihs_.at(index_name).get();
+//                int offset = 0;
+//                for (auto& index_col : index.cols) {
+//                    memcpy(old_delete_rec + offset, old_record.data + index_col.offset, index_col.len);
+//                    memcpy(new_insert_rec + offset, update_record.data + index_col.offset, index_col.len);
+//                    offset += index_col.len;
+//                }
+//
+//                if (!ih->delete_entry(old_delete_rec, context_->txn_)) {
+//                    throw IndexEntryNotFoundError();
+//                }
+//                ih->insert_entry(new_insert_rec, rids_[i], context_->txn_);
+//                delete[] old_delete_rec;
+//                delete[] new_insert_rec;
+//            }
+//        }
 
     Rid &rid() override { return _abstract_rid; }
 };
