@@ -504,9 +504,10 @@ bool IxIndexHandle::delete_entry(const char *key, Transaction *transaction) {
     // 维护父节点第一个键为其第一个孩子节点的第一个键
     maintain_parent(leaf_node);
     // leaf_node->erase_pair(leaf_node->lower_bound(key));
-    coalesce_or_redistribute(leaf_node, transaction, &is_root_latched);
+    if (!coalesce_or_redistribute(leaf_node, transaction, &is_root_latched)) {
+        buffer_pool_manager_->unpin_page(leaf_node->get_page_id(), true);
+    }
     // assert(buffer_pool_manager_->unpin_page(leaf_node->get_page_id(), true));
-    buffer_pool_manager_->unpin_page(leaf_node->get_page_id(), true);
     // 暂时不用事务
     // transaction->append_index_deleted_page(leaf_node->page);
     return true;
@@ -558,28 +559,29 @@ bool IxIndexHandle::coalesce_or_redistribute(IxNodeHandle *node, Transaction *tr
         redistribute(sibling, node, parent, node_rank);
         // unpin pages!
         // buffer_pool_manager_->unpin_page(node->get_page_id(), true);
-        buffer_pool_manager_->unpin_page(parent->get_page_id(), true);
-        buffer_pool_manager_->unpin_page(sibling->get_page_id(), true);
+        buffer_pool_manager_->unpin_page(parent->get_page_id(), false);
+        // buffer_pool_manager_->unpin_page(sibling->get_page_id(), true);
         return false;
     }
 
-    if (coalesce(&sibling, &node, &parent, node_rank, nullptr, nullptr)) {
+    if (!coalesce(&sibling, &node, &parent, node_rank, nullptr, nullptr)) {
         buffer_pool_manager_->unpin_page(parent->get_page_id(), true);
-        buffer_pool_manager_->delete_page(parent->get_page_id());
-        release_node_handle(*parent);
+        // buffer_pool_manager_->delete_page(parent->get_page_id());
+        // release_node_handle(*parent);
     }
-    else {
-        buffer_pool_manager_->unpin_page(parent->get_page_id(), true);
-    }
+    return true;
+//    else {
+//        buffer_pool_manager_->unpin_page(parent->get_page_id(), true);
+//    }
     // assert(buffer_pool_manager_->unpin_page(parent->get_page_id(), true));
-    if (!node_rank) {
-        // assert(buffer_pool_manager_->unpin_page(node->get_page_id(), true));
-        buffer_pool_manager_->unpin_page(node->get_page_id(), true);
-    }
-    else {
-        // assert(buffer_pool_manager_->unpin_page(sibling->get_page_id(), true));
-        buffer_pool_manager_->unpin_page(sibling->get_page_id(), true);
-    }
+//    if (!node_rank) {
+//        // assert(buffer_pool_manager_->unpin_page(node->get_page_id(), true));
+//        buffer_pool_manager_->unpin_page(node->get_page_id(), true);
+//    }
+//    else {
+//        // assert(buffer_pool_manager_->unpin_page(sibling->get_page_id(), true));
+//        buffer_pool_manager_->unpin_page(sibling->get_page_id(), true);
+//    }
     return true;
 }
 
@@ -603,13 +605,13 @@ bool IxIndexHandle::adjust_root(IxNodeHandle *old_root_node) {
         file_hdr_->root_page_ = new_root->get_page_no();
         // assert(buffer_pool_manager_->unpin_page(new_root->get_page_id(), true));
         buffer_pool_manager_->unpin_page(new_root->get_page_id(), true);
-        // buffer_pool_manager_->unpin_page(old_root_node->get_page_id(), true);
-        // buffer_pool_manager_->delete_page(old_root_node->get_page_id());
+        buffer_pool_manager_->unpin_page(old_root_node->get_page_id(), false);
+        buffer_pool_manager_->delete_page(old_root_node->get_page_id());
         return true;
     }
     else if (old_root_node->is_leaf_page() && old_root_node->get_size() == 0) {
-        // buffer_pool_manager_->unpin_page(old_root_node->get_page_id(), true);
-        // buffer_pool_manager_->delete_page(old_root_node->get_page_id());
+        buffer_pool_manager_->unpin_page(old_root_node->get_page_id(), false);
+        buffer_pool_manager_->delete_page(old_root_node->get_page_id());
         update_root_page_no(IX_NO_PAGE);
         return true;
     }
@@ -666,6 +668,8 @@ void IxIndexHandle::redistribute(IxNodeHandle *neighbor_node, IxNodeHandle *node
         // 修改移动键值对的孩子节点的父节点信息
         maintain_child(node, 0);
     }
+    buffer_pool_manager_->unpin_page(neighbor_node->get_page_id(), true);
+    buffer_pool_manager_->unpin_page(node->get_page_id(), true);
 }
 
 /**
@@ -718,7 +722,7 @@ bool IxIndexHandle::coalesce(IxNodeHandle **neighbor_node, IxNodeHandle **node, 
     buffer_pool_manager_->unpin_page((*node)->get_page_id(), true);
     buffer_pool_manager_->delete_page((*node)->get_page_id());
     release_node_handle(**node);
-
+    buffer_pool_manager_->unpin_page((*neighbor_node)->get_page_id(), true);
     (*parent)->erase_pair(index);
 
     // 返回parent是否需要被删除
