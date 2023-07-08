@@ -350,33 +350,6 @@ void SmManager::create_index(const std::string& tab_name, const std::vector<std:
     // 进行唯一性检查
     // 用不了哈希，试插法
     auto fh = fhs_[tab_name].get();
-    // std::map<int, bool> map;
-//    for (RmScan rmScan(fh); !rmScan.is_end(); rmScan.next()) {
-//        auto rec = fh->get_record(rmScan.rid(), context);
-//        char* insert_data = new char[tot_col_len + 1];
-//        // *(insert_data + tot_col_len) = '\0';
-//        // char op = '\0';
-//        // memcpy(insert_data + tot_col_len, &op, 1);
-//        int offset = 0;
-//        std::string s = insert_data;
-//        for (auto &col: cols) {
-//            memcpy(insert_data + offset, rec->data + col.offset, col.len);
-//            offset += col.len;
-//        }
-//        // auto it = map.find(*insert_data);
-////        if (it != map.end()) {
-////            throw InternalError("不满足唯一性约束！");
-////        }
-//        if (map.count(*(int*)insert_data)) {
-//            throw InternalError("不满足唯一性约束！");
-//        }
-//        s = insert_data;
-//        // std::cerr << insert_data << std::endl;
-//        // map.insert({*(int*)insert_data, 1});
-//        delete[] insert_data;
-//    }
-    // map.clear();
-
     ix_manager_->create_index(tab_name, cols);
     auto ih = ix_manager_->open_index(tab_name, cols);
     int idx = -1;
