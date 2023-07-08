@@ -193,7 +193,6 @@ void *client_handler(void *sock_fd) {
 
     // Clear
     std::cout << "Terminating current client_connection..." << std::endl;
-    sm_manager->close_db();
     close(fd);           // close a file descriptor.
     pthread_exit(NULL);  // terminate calling thread!
 }
