@@ -890,6 +890,10 @@ void IxIndexHandle::maintain_parent(IxNodeHandle *node) {
         // Load its parent
         IxNodeHandle *parent = fetch_node(curr->get_parent_page_no());
         int rank = parent->find_child(curr);
+        if (rank != 0) {
+            assert(buffer_pool_manager_->unpin_page(parent->get_page_id(), true));
+            break;
+        }
         char *parent_key = parent->get_key(rank);
         char *child_first_key = curr->get_key(0);
         if (memcmp(parent_key, child_first_key, file_hdr_->col_tot_len_) == 0) {
