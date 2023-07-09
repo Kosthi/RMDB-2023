@@ -26,8 +26,8 @@ inline int ix_compare(const char *a, const char *b, ColType type, int col_len) {
             return (ia < ib) ? -1 : ((ia > ib) ? 1 : 0);
         }
         case TYPE_FLOAT: {
-            float fa = *(float *)a;
-            float fb = *(float *)b;
+            double fa = *(double *)a;
+            double fb = *(double *)b;
             return (fa < fb) ? -1 : ((fa > fb) ? 1 : 0);
         }
         case TYPE_BIGINT: {
@@ -51,6 +51,7 @@ inline int ix_compare(const char* a, const char* b, const std::vector<ColType>& 
     int fed_size = *(int*)(b + tot_col_lens);
     fed_size = fed_size < col_lens.size() - 1 ? fed_size : col_lens.size() - 1;
     if (fed_size == -1) fed_size = col_lens.size() - 1;
+    memset(const_cast<char*>(b + tot_col_lens), 0, 4);
     for(size_t i = 0; i <= fed_size; ++i) {
         int res = ix_compare(a + offset, b + offset, col_types[i], col_lens[i]);
         if(res != 0) return res;
