@@ -452,6 +452,7 @@ page_id_t IxIndexHandle::insert_entry(const char *key, const Rid &value, Transac
     }
     auto [leaf_node, is_root_latched] = find_leaf_page(key, Operation::INSERT, transaction, false);
     leaf_node->insert(key, value);
+    maintain_parent(leaf_node);
     // assert(buffer_pool_manager_->unpin_page(leaf_node->get_page_id(), true));
     buffer_pool_manager_->unpin_page(leaf_node->get_page_id(), true);
     // leaf_node->node_latch_.unlock();
