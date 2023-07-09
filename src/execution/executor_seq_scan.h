@@ -124,7 +124,7 @@ class SeqScanExecutor : public AbstractExecutor {
             case TYPE_STRING:
                 return memcmp(a, b, col_len);
             case TYPE_DATETIME:
-                return !(*(DateTime *)a == *(DateTime *)b);
+                return *(DateTime *)a == *(DateTime *)b;
             default:
                 throw InternalError("Unexpected data type");
         }
