@@ -85,6 +85,8 @@ class IndexScanExecutor : public AbstractExecutor {
         }
         idx--;
         memcpy(key + index_meta_.col_tot_len, &idx, 4);
+        // 只有最左叶子节点，需要考虑最小值大于等于小于key，其他节点都小于等于key
+
         if (conds_[idx].op == OP_EQ) {
             lower = ih->lower_bound(key);
             upper = ih->upper_bound_for_GT(key);
@@ -93,12 +95,30 @@ class IndexScanExecutor : public AbstractExecutor {
             lower = ih->lower_bound(key);
         }
         else if (conds_[idx].op == OP_LE) {
+            // 找第一个大于key的位置，最终落在如果是中间或者最右叶子节点上的最小值必定小于等于key
+            // 如果pos = size，则最大的也比key小 upper_bound = pos
+            // 如果在最左叶子节点上，如果key_head <= key,upper_bound即使找到最左也是1
+            // 如果key_head > key, upper_bound = 0
+            // 对于中间和最右叶子节点，正常处理
             upper = ih->upper_bound_for_GT(key);
         }
         else if (conds_[idx].op == OP_GT) {
+            // 找第一个比key大的作为下限
+            // 如果在最左叶子节点，最小值小于或等于或大于key
+            // 最小值小于等于key，正常找；大于key pos = 0
+            // 叶子节点的最大值如果小于等于key，则pos = size，即下一个叶子节点的第一个key
+            // 最大值如果大于key，正常找
+            // 如果在最右叶子节点 最大值小于等于key，则pos = size，找不到; 如果小于最大值，正常找
+            // 如果在中间叶子节点 与最右叶子节点相同
             lower = ih->upper_bound_for_GT(key);
         }
         else if (conds_[idx].op == OP_LT) {
+            // 找第一个大于等于key的作为上界
+            // 如果在最左叶子节点 最小值大于等于小于key都有可能
+            // 如果最小值大于等于key 则pos = 0；小于key，正常找
+            // 如果最大值小于key pos = size；大于等于key，正常找
+            // 最右叶子节点 最大值小于key pos = size; 大于等于key，正常找
+            // 中间叶子节点 与最右叶子节点相同
             upper = ih->lower_bound(key);
         }
         delete[] key;

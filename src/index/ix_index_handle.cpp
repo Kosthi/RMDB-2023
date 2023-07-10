@@ -243,7 +243,7 @@ std::pair<IxNodeHandle *, bool> IxIndexHandle::find_leaf_page(const char *key, O
 //            cur_nodeHandle->node_latch_.lock_shared();
 //            auto parent = fetch_node(cur_nodeHandle->get_parent_page_no());
 //            if (!parent->is_root_page()) {
-//                parent->node_latch_.unlock_shared();
+//                parent->node_latch_.unlock_shared();z
 //            }
 //            assert(buffer_pool_manager_->unpin_page(parent->get_page_id(), false));
 //        }
@@ -275,12 +275,18 @@ Iid IxIndexHandle::upper_bound_for_GT(const char *key) {
     auto [leaf, is_root_latched] = find_leaf_page(key, Operation::FIND, transaction, false);
     int cmp = ix_compare(leaf->get_key(0), key, file_hdr_->col_types_, file_hdr_->col_lens_);
     int pos = leaf->upper_bound(key);
+    // 如果要找的key在叶子节点最右端，则pos = leaf_size，此时 iid{no, pos}
+    // 如果key延续到最右段 则iid{no, pos}
+    // 不需要leaf_end
+    if ((cmp > 0 && pos == 1) || leaf->page_hdr->num_key == 0) pos = 0;
     Iid iid;
     if (pos == leaf->get_size()) {
-        iid = leaf_end();
-    }
-    else {
-        if ((cmp > 0 && pos == 1) || leaf->page_hdr->num_key == 0) pos = 0;
+        if (file_hdr_->last_leaf_ == leaf->get_page_no()) {
+            iid = leaf_end();
+        } else {
+            iid = {leaf->page_hdr->next_leaf, 0};
+        }
+    } else {
         iid = {leaf->get_page_no(), pos};
     }
     // assert(buffer_pool_manager_->unpin_page(leaf->get_page_id(), false));
