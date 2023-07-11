@@ -72,6 +72,7 @@ class IndexScanExecutor : public AbstractExecutor {
         Iid lower = ih->leaf_begin(), upper = ih->leaf_end();
         // 构造索引key
         char* key = new char[index_meta_.col_tot_len + 4];
+        char* last_eq_key = new char[index_meta_.col_tot_len + 4];
         int offset = 0;
         int idx = 0;
         for (; idx < index_meta_.cols.size(); ++idx) {
@@ -86,13 +87,20 @@ class IndexScanExecutor : public AbstractExecutor {
         idx--;
         memcpy(key + index_meta_.col_tot_len, &idx, 4);
         // 只有最左叶子节点，需要考虑最小值大于等于小于key，其他节点都小于等于key
-
+        if (idx > 0 && conds_[idx].op != OP_EQ) {
+            memcpy(last_eq_key, key, index_meta_.col_tot_len);
+            int tmp = idx - 1;
+            memcpy(last_eq_key + index_meta_.col_tot_len, &tmp, 4);
+        }
         if (conds_[idx].op == OP_EQ) {
             lower = ih->lower_bound(key);
             upper = ih->upper_bound_for_GT(key);
         }
         else if (conds_[idx].op == OP_GE) {
             lower = ih->lower_bound(key);
+            // 对于多列索引，需要考虑新的上下限
+            // 找满足第一个不满足多列等号条件的位置
+            if (idx) upper = ih->upper_bound_for_GT(last_eq_key);
         }
         else if (conds_[idx].op == OP_LE) {
             // 找第一个大于key的位置，最终落在如果是中间或者最右叶子节点上的最小值必定小于等于key
@@ -100,6 +108,8 @@ class IndexScanExecutor : public AbstractExecutor {
             // 如果在最左叶子节点上，如果key_head <= key,upper_bound即使找到最左也是1
             // 如果key_head > key, upper_bound = 0
             // 对于中间和最右叶子节点，正常处理
+            // 对于多列索引，需要考虑新的上下限
+            if (idx) lower = ih->lower_bound(last_eq_key);
             upper = ih->upper_bound_for_GT(key);
         }
         else if (conds_[idx].op == OP_GT) {
@@ -111,6 +121,8 @@ class IndexScanExecutor : public AbstractExecutor {
             // 如果在最右叶子节点 最大值小于等于key，则pos = size，找不到; 如果小于最大值，正常找
             // 如果在中间叶子节点 与最右叶子节点相同
             lower = ih->upper_bound_for_GT(key);
+            // 对于多列索引，需要考虑新的上下限
+            if (idx) upper = ih->upper_bound_for_GT(last_eq_key);
         }
         else if (conds_[idx].op == OP_LT) {
             // 找第一个大于等于key的作为上界
@@ -120,8 +132,11 @@ class IndexScanExecutor : public AbstractExecutor {
             // 最右叶子节点 最大值小于key pos = size; 大于等于key，正常找
             // 中间叶子节点 与最右叶子节点相同
             upper = ih->lower_bound(key);
+            // 对于多列索引，需要考虑新的上下限
+            if (idx) lower = ih->lower_bound(last_eq_key);
         }
         delete[] key;
+        delete[] last_eq_key;
         scan_ = std::make_unique<IxScan>(ih, lower, upper, sm_manager_->get_bpm());
         while (!scan_->is_end()) {
             rid_ = scan_->rid();
