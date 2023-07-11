@@ -788,8 +788,17 @@ Iid IxIndexHandle::lower_bound(const char *key) {
 //    if (is_root_latched) {
 //        root_latch_.unlock();
 //    }
+    Iid iid;
     int pos = leaf->lower_bound(key);
-    auto iid = Iid{leaf->get_page_no(), pos};
+    if (pos == leaf->get_size()) {
+        if (file_hdr_->last_leaf_ == leaf->get_page_no()) {
+            iid = leaf_end();
+        } else {
+            iid = {leaf->page_hdr->next_leaf, 0};
+        }
+    } else {
+        iid = {leaf->get_page_no(), pos};
+    }
     // assert(buffer_pool_manager_->unpin_page(leaf->get_page_id(), false));
     buffer_pool_manager_->unpin_page(leaf->get_page_id(), false);
     return iid;
