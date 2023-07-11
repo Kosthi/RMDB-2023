@@ -86,12 +86,13 @@ class IndexScanExecutor : public AbstractExecutor {
         }
         idx--;
         memcpy(key + index_meta_.col_tot_len, &idx, 4);
-        // 只有最左叶子节点，需要考虑最小值大于等于小于key，其他节点都小于等于key
+        // 对于多列索引，需要考虑最后一个等号的位置 要么为idx，要么idx - 1
         if (idx > 0 && conds_[idx].op != OP_EQ) {
             memcpy(last_eq_key, key, index_meta_.col_tot_len);
             int tmp = idx - 1;
             memcpy(last_eq_key + index_meta_.col_tot_len, &tmp, 4);
         }
+        // 只有最左叶子节点，需要考虑最小值大于等于小于key，其他节点都小于等于key
         if (conds_[idx].op == OP_EQ) {
             lower = ih->lower_bound(key);
             upper = ih->upper_bound_for_GT(key);
