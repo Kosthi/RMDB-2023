@@ -310,9 +310,7 @@ void SmManager::drop_table(const std::string& tab_name, Context* context) {
                 memcpy(delete_data + offset, rec->data + col.offset, col.len);
                 offset += col.len;
             }
-            if (!ih->delete_entry(delete_data, context->txn_)) {
-                throw IndexEntryNotFoundError();
-            }
+            assert(ih->delete_entry(delete_data, context->txn_));
             delete[] delete_data;
         }
 
@@ -366,7 +364,7 @@ void SmManager::create_index(const std::string& tab_name, const std::vector<std:
         std::vector<Rid> rid;
         if (ih->get_value(insert_data, &rid, context->txn_)) {
             for (auto& inse_data : insert_datas) {
-                ih->delete_entry(inse_data, context->txn_);
+                assert(ih->delete_entry(inse_data, context->txn_));
                 delete[] inse_data;
             }
             ix_manager_->close_index(ih.get());
@@ -374,7 +372,7 @@ void SmManager::create_index(const std::string& tab_name, const std::vector<std:
             throw InternalError("不满足唯一性约束！");
         }
         insert_datas.emplace_back(insert_data);
-        ih->insert_entry(insert_data, rmScan.rid(), context->txn_);
+        assert(ih->insert_entry(insert_data, rmScan.rid(), context->txn_) > 0);
     }
 
     for (auto& insert_data : insert_datas) {
@@ -430,9 +428,7 @@ void SmManager::drop_index(const std::string& tab_name, const std::vector<std::s
             memcpy(delete_data + offset, rec->data + col.offset, col.len);
             offset += col.len;
         }
-        if (!ih->delete_entry(delete_data, context->txn_)) {
-            throw IndexEntryNotFoundError();
-        }
+        assert(ih->delete_entry(delete_data, context->txn_));
         delete[] delete_data;
     }
     // 先关闭再清除索引文件
@@ -486,9 +482,7 @@ void SmManager::drop_index(const std::string& tab_name, const std::vector<ColMet
             memcpy(delete_data + offset, rec->data + col.offset, col.len);
             offset += col.len;
         }
-        if (!ih->delete_entry(delete_data, context->txn_)) {
-            throw IndexEntryNotFoundError();
-        }
+        assert(ih->delete_entry(delete_data, context->txn_));
         delete[] delete_data;
     }
 
