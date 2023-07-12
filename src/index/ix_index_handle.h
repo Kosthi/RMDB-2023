@@ -226,13 +226,13 @@ class IxIndexHandle {
 
     Iid leaf_begin() const;
 
-    Iid upper_bound_for_GT(const char*);
-
    private:
     // 辅助函数
     void update_root_page_no(page_id_t root) { file_hdr_->root_page_ = root; }
 
     bool is_empty() const { return file_hdr_->root_page_ == IX_NO_PAGE; }
+
+    void create_new_root();
 
     // for get/create node
     IxNodeHandle *fetch_node(int page_no) const;

@@ -95,13 +95,13 @@ class IndexScanExecutor : public AbstractExecutor {
         // 只有最左叶子节点，需要考虑最小值大于等于小于key，其他节点都小于等于key
         if (conds_[idx].op == OP_EQ) {
             lower = ih->lower_bound(key);
-            upper = ih->upper_bound_for_GT(key);
+            upper = ih->upper_bound(key);
         }
         else if (conds_[idx].op == OP_GE) {
             lower = ih->lower_bound(key);
             // 对于多列索引，需要考虑新的上下限
             // 找满足第一个不满足多列等号条件的位置
-            if (idx) upper = ih->upper_bound_for_GT(last_eq_key);
+            if (idx) upper = ih->upper_bound(last_eq_key);
         }
         else if (conds_[idx].op == OP_LE) {
             // 找第一个大于key的位置，最终落在如果是中间或者最右叶子节点上的最小值必定小于等于key
@@ -111,7 +111,7 @@ class IndexScanExecutor : public AbstractExecutor {
             // 对于中间和最右叶子节点，正常处理
             // 对于多列索引，需要考虑新的上下限
             if (idx) lower = ih->lower_bound(last_eq_key);
-            upper = ih->upper_bound_for_GT(key);
+            upper = ih->upper_bound(key);
         }
         else if (conds_[idx].op == OP_GT) {
             // 找第一个比key大的作为下限
@@ -121,9 +121,9 @@ class IndexScanExecutor : public AbstractExecutor {
             // 最大值如果大于key，正常找
             // 如果在最右叶子节点 最大值小于等于key，则pos = size，找不到; 如果小于最大值，正常找
             // 如果在中间叶子节点 与最右叶子节点相同
-            lower = ih->upper_bound_for_GT(key);
+            lower = ih->upper_bound(key);
             // 对于多列索引，需要考虑新的上下限
-            if (idx) upper = ih->upper_bound_for_GT(last_eq_key);
+            if (idx) upper = ih->upper_bound(last_eq_key);
         }
         else if (conds_[idx].op == OP_LT) {
             // 找第一个大于等于key的作为上界
