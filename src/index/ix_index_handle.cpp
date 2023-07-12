@@ -93,12 +93,24 @@ bool IxNodeHandle::leaf_lookup(const char *key, Rid **value) {
  * @param key 目标key
  * @return page_id_t 目标key所在的孩子节点（子树）的存储页面编号
  */
-page_id_t IxNodeHandle::internal_lookup(const char *key) {
+page_id_t IxNodeHandle::internal_lookup(const char *key, Operation operation) {
     // Todo:
     // 1. 查找当前非叶子节点中目标key所在孩子节点（子树）的位置
     // 2. 获取该孩子节点（子树）所在页面的编号
     // 3. 返回页面编号
-    int pos = upper_bound(key) - 1;
+    // 对于插入删除操作，key为精确值，为精确查找，pos = upper_bound(key) - 1
+    // 对于查找操作，key可能为模糊值，且可能存在多条满足条件的key，pos = lower_bound(key) - 1
+    // 这里对查找细分为find_upper和find_lower，适用于多列索引时模糊查找
+    int pos = -1;
+    // for lower_bound and get_value
+    if (operation == Operation::FIND_LOWER || operation == Operation::FIND) {
+        pos = lower_bound(key);
+        if (pos > 0) pos--;
+    }
+    // for insert, delete and find_upper
+    else {
+        pos = upper_bound(key) - 1;
+    }
     return value_at(pos);
 }
 
@@ -236,7 +248,7 @@ std::pair<IxNodeHandle *, bool> IxIndexHandle::find_leaf_page(const char *key, O
     while (!cur_nodeHandle->is_leaf_page()) {
         // assert(buffer_pool_manager_->unpin_page({fd_, cur_page_no}, false));
         buffer_pool_manager_->unpin_page({fd_, cur_page_no}, false);
-        cur_page_no = cur_nodeHandle->internal_lookup(key);
+        cur_page_no = cur_nodeHandle->internal_lookup(key, operation);
         cur_nodeHandle = fetch_node(cur_page_no);
         // 对于查找操作，进入树的每一层结点都是先在当前结点获取读锁，然后释放父结点读锁
 //        if (operation == Operation::FIND) {
@@ -272,7 +284,7 @@ Iid IxIndexHandle::upper_bound_for_GT(const char *key) {
     if (is_empty()) {
         return Iid{-1, -1};
     }
-    auto [leaf, is_root_latched] = find_leaf_page(key, Operation::FIND, transaction, false);
+    auto [leaf, is_root_latched] = find_leaf_page(key, Operation::FIND_UPPER, transaction, false);
     int cmp = ix_compare(leaf->get_key(0), key, file_hdr_->col_types_, file_hdr_->col_lens_);
     int pos = leaf->upper_bound(key);
     // 如果要找的key在叶子节点最右端，则pos = leaf_size，此时 iid{no, pos}
@@ -312,7 +324,7 @@ bool IxIndexHandle::get_value(const char *key, std::vector<Rid> *result, Transac
     if (is_empty()) {
         return false;
     }
-    auto [leaf_node, is_root_latched] = find_leaf_page(key, Operation::FIND, transaction, true);
+    auto [leaf_node, is_root_latched] = find_leaf_page(key, Operation::FIND, transaction, false);
     buffer_pool_manager_->unpin_page(leaf_node->get_page_id(), false);
     // 释放叶子节点读锁
     // leaf_node->node_latch_.unlock_shared();
@@ -320,6 +332,14 @@ bool IxIndexHandle::get_value(const char *key, std::vector<Rid> *result, Transac
     if (leaf_node->leaf_lookup(key, &rid)) {
         result->emplace_back(*rid);
         return true;
+    }
+    else if (leaf_node->get_page_no() != file_hdr_->last_leaf_) {
+        auto next_leaf = fetch_node(leaf_node->get_next_leaf());
+        buffer_pool_manager_->unpin_page(next_leaf->get_page_id(), false);
+        if (ix_compare(key, next_leaf->get_key(0), file_hdr_->col_types_, file_hdr_->col_lens_) == 0) {
+            result->emplace_back(*next_leaf->get_rid(0));
+            return true;
+        }
     }
     return false;
 }
@@ -403,7 +423,7 @@ void IxIndexHandle::insert_into_parent(IxNodeHandle *old_node, const char *key, 
         auto new_root_node = create_node();
         // 初始化新root节点
         new_root_node->set_parent_page_no(old_node->get_parent_page_no());
-
+        new_root_node->page_hdr->is_leaf = false;
         old_node->set_parent_page_no(new_root_node->get_page_no());
         new_node->set_parent_page_no(new_root_node->get_page_no());
 
@@ -450,7 +470,15 @@ page_id_t IxIndexHandle::insert_entry(const char *key, const Rid &value, Transac
         auto new_root = create_node();
         new_root->set_parent_page_no(IX_NO_PAGE);
         new_root->page_hdr->is_leaf = true;
+        file_hdr_->first_leaf_ = new_root->get_page_no();
+        file_hdr_->last_leaf_ = new_root->get_page_no();
+        auto leaf_head = fetch_node(IX_LEAF_HEADER_PAGE);
+        leaf_head->page_hdr->prev_leaf = new_root->get_page_no();
+        leaf_head->page_hdr->next_leaf = new_root->get_page_no();
+        new_root->page_hdr->prev_leaf = leaf_head->get_page_no();
+        new_root->page_hdr->next_leaf = leaf_head->get_page_no();
         update_root_page_no(new_root->get_page_no());
+        buffer_pool_manager_->unpin_page(leaf_head->get_page_id(), true);
         buffer_pool_manager_->unpin_page(new_root->get_page_id(), true);
     }
     auto [leaf_node, is_root_latched] = find_leaf_page(key, Operation::INSERT, transaction, false);
@@ -487,7 +515,7 @@ bool IxIndexHandle::delete_entry(const char *key, Transaction *transaction) {
     if (is_empty()) {
         return false;
     }
-    auto [leaf_node, is_root_latched] = find_leaf_page(key, Operation::FIND, nullptr, false);
+    auto [leaf_node, is_root_latched] = find_leaf_page(key, Operation::DELETE, nullptr, false);
     int pre = leaf_node->page_hdr->num_key;
     // 删除失败 找不到
     if (pre == leaf_node->remove(key)) {
@@ -575,12 +603,15 @@ bool IxIndexHandle::adjust_root(IxNodeHandle *old_root_node) {
         new_root->set_parent_page_no(IX_NO_PAGE);
         file_hdr_->root_page_ = new_root->get_page_no();
         // assert(buffer_pool_manager_->unpin_page(new_root->get_page_id(), true));
+        release_node_handle(*old_root_node);
         buffer_pool_manager_->unpin_page(new_root->get_page_id(), true);
         buffer_pool_manager_->unpin_page(old_root_node->get_page_id(), false);
         buffer_pool_manager_->delete_page(old_root_node->get_page_id());
         return true;
     }
     else if (old_root_node->is_leaf_page() && old_root_node->get_size() == 0) {
+        erase_leaf(old_root_node);
+        release_node_handle(*old_root_node);
         buffer_pool_manager_->unpin_page(old_root_node->get_page_id(), false);
         buffer_pool_manager_->delete_page(old_root_node->get_page_id());
         update_root_page_no(IX_NO_PAGE);
@@ -734,7 +765,7 @@ Iid IxIndexHandle::lower_bound(const char *key) {
     if (is_empty()) {
         return Iid{-1, -1};
     }
-    auto [leaf, is_root_latched] = find_leaf_page(key, Operation::FIND, transaction, false);
+    auto [leaf, is_root_latched] = find_leaf_page(key, Operation::FIND_LOWER, transaction, false);
 //    if (is_root_latched) {
 //        root_latch_.unlock();
 //    }

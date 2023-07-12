@@ -14,7 +14,8 @@ See the Mulan PSL v2 for more details. */
 #include "transaction/transaction.h"
 #include <shared_mutex>
 
-enum class Operation { FIND = 0, INSERT, DELETE };  // 三种操作：查找、插入、删除
+// 增加联合索引时查找，对internal_look_up细分模糊上界和模糊下界，防止找到错误的孩子
+enum class Operation { FIND = 0, INSERT, DELETE, FIND_UPPER, FIND_LOWER};  // 三种操作：查找、插入、删除
 
 static const bool binary_search = false;
 
@@ -130,7 +131,7 @@ class IxNodeHandle {
 
     void insert_pairs(int pos, const char *key, const Rid *rid, int n);
 
-    page_id_t internal_lookup(const char *key);
+    page_id_t internal_lookup(const char *key, Operation operation);
 
     bool leaf_lookup(const char *key, Rid **value);
 
