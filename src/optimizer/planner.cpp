@@ -315,13 +315,19 @@ std::shared_ptr<Plan> Planner::generate_sort_plan(std::shared_ptr<Query> query, 
         const auto &sel_tab_cols = sm_manager_->db_.get_table(sel_tab_name).cols;
         all_cols.insert(all_cols.end(), sel_tab_cols.begin(), sel_tab_cols.end());
     }
-    TabCol sel_col;
-    for (auto &col : all_cols) {
-        if(col.name.compare(x->order->cols->col_name) == 0 )
-        sel_col = {.tab_name = col.tab_name, .col_name = col.name};
+
+    std::vector<bool> is_desc;
+    std::vector<TabCol> sel_cols;
+    // Analyze阶段check_column已检查列名存在性和唯一性
+    for (auto& order : x->orders) {
+        is_desc.emplace_back(order->orderby_dir == ast::OrderBy_DESC);
+        auto pos = std::find_if(all_cols.begin(), all_cols.end(), [&](const ColMeta &colMeta) {
+            return colMeta.name == order->cols->col_name;
+        });
+        sel_cols.emplace_back(TabCol{pos->tab_name, pos->name});
     }
-    return std::make_shared<SortPlan>(T_Sort, std::move(plan), sel_col, 
-                                    x->order->orderby_dir == ast::OrderBy_DESC);
+
+    return std::make_shared<SortPlan>(T_Sort, std::move(plan), std::move(sel_cols), std::move(is_desc));
 }
 
 

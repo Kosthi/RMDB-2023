@@ -99,6 +99,14 @@ class SeqScanExecutor : public AbstractExecutor {
 
     size_t tupleLen() const override { return len_; }
 
+    std::vector<ColMeta> get_col_offset(std::vector<TabCol>& targets) {
+        std::vector<ColMeta> cols_meta;
+        for (auto& target : targets) {
+            cols_meta.emplace_back(*get_col(cols_, target));
+        }
+        return cols_meta;
+    }
+
     /**
     * @description: 比较数据数值
     *
