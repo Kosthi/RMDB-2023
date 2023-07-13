@@ -35,8 +35,8 @@
    especially those whose name start with YY_ or yy_.  They are
    private implementation details that can be changed or removed.  */
 
-#ifndef YY_YY_USERS_SXY_DOCUMENTS_PROJECTS_RUCBASE_SRC_PARSER_YACC_TAB_H_INCLUDED
-# define YY_YY_USERS_SXY_DOCUMENTS_PROJECTS_RUCBASE_SRC_PARSER_YACC_TAB_H_INCLUDED
+#ifndef YY_YY_YACC_TAB_H_INCLUDED
+# define YY_YY_YACC_TAB_H_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
@@ -48,7 +48,8 @@ extern int yydebug;
 /* Token kinds.  */
 #ifndef YYTOKENTYPE
 # define YYTOKENTYPE
-enum yytokentype {
+  enum yytokentype
+  {
     YYEMPTY = -2,
     YYEOF = 0,                     /* "end of file"  */
     YYerror = 256,                 /* error  */
@@ -86,18 +87,19 @@ enum yytokentype {
     TXN_ABORT = 288,               /* TXN_ABORT  */
     TXN_ROLLBACK = 289,            /* TXN_ROLLBACK  */
     ORDER_BY = 290,                /* ORDER_BY  */
-    LEQ = 291,                     /* LEQ  */
-    NEQ = 292,                     /* NEQ  */
-    GEQ = 293,                     /* GEQ  */
-    T_EOF = 294,                   /* T_EOF  */
-    IDENTIFIER = 295,              /* IDENTIFIER  */
-    VALUE_STRING = 296,            /* VALUE_STRING  */
-    VALUE_INT = 297,               /* VALUE_INT  */
-    VALUE_FLOAT = 298,             /* VALUE_FLOAT  */
-    VALUE_BIGINT = 299,            /* VALUE_BIGINT  */
-    VALUE_DATETIME = 300           /* VALUE_DATETIME  */
-};
-typedef enum yytokentype yytoken_kind_t;
+    LIMIT = 291,                   /* LIMIT  */
+    LEQ = 292,                     /* LEQ  */
+    NEQ = 293,                     /* NEQ  */
+    GEQ = 294,                     /* GEQ  */
+    T_EOF = 295,                   /* T_EOF  */
+    IDENTIFIER = 296,              /* IDENTIFIER  */
+    VALUE_STRING = 297,            /* VALUE_STRING  */
+    VALUE_INT = 298,               /* VALUE_INT  */
+    VALUE_FLOAT = 299,             /* VALUE_FLOAT  */
+    VALUE_BIGINT = 300,            /* VALUE_BIGINT  */
+    VALUE_DATETIME = 301           /* VALUE_DATETIME  */
+  };
+  typedef enum yytokentype yytoken_kind_t;
 #endif
 
 /* Value type.  */
@@ -122,4 +124,4 @@ struct YYLTYPE
 int yyparse (void);
 
 
-#endif /* !YY_YY_USERS_SXY_DOCUMENTS_PROJECTS_RUCBASE_SRC_PARSER_YACC_TAB_H_INCLUDED  */
+#endif /* !YY_YY_YACC_TAB_H_INCLUDED  */

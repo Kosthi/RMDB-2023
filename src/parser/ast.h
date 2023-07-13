@@ -231,16 +231,19 @@ struct SelectStmt : public TreeNode {
 
     
     bool has_sort;
+    int limit;
     std::vector<std::shared_ptr<OrderBy>> orders;
 
 
     SelectStmt(std::vector<std::shared_ptr<Col>> cols_,
                std::vector<std::string> tabs_,
                std::vector<std::shared_ptr<BinaryExpr>> conds_,
-               std::vector<std::shared_ptr<OrderBy>> orders_) :
+               std::vector<std::shared_ptr<OrderBy>> orders_,
+               int limit_) :
             cols(std::move(cols_)), tabs(std::move(tabs_)), conds(std::move(conds_)), 
             orders(std::move(orders_)) {
                 has_sort = (bool)orders.size();
+                limit = limit_;
             }
 };
 
@@ -251,6 +254,7 @@ struct SemValue {
     std::string sv_str;
     long long sv_bigint;
     DateTime sv_datetime;
+    int sv_limit;
     OrderByDir sv_orderby_dir;
     std::vector<std::string> sv_strs;
 

@@ -22,9 +22,10 @@ class ProjectionExecutor : public AbstractExecutor {
     std::vector<ColMeta> cols_;                     // 需要投影的字段
     size_t len_;                                    // 字段总长度
     std::vector<size_t> sel_idxs_;                  // 选中的字段在表中的索引，对应第几个字段
+    int limit_;                                     // 限制记录条数
 
    public:
-    ProjectionExecutor(std::unique_ptr<AbstractExecutor> prev, const std::vector<TabCol> &sel_cols) {
+    ProjectionExecutor(std::unique_ptr<AbstractExecutor> prev, const std::vector<TabCol> &sel_cols, int limit) {
         prev_ = std::move(prev);
 
         int curr_offset = 0;
@@ -38,6 +39,7 @@ class ProjectionExecutor : public AbstractExecutor {
             cols_.push_back(col);
         }
         len_ = curr_offset;
+        limit_ = limit;
     }
 
     void beginTuple() override { prev_->beginTuple(); }
@@ -45,6 +47,7 @@ class ProjectionExecutor : public AbstractExecutor {
     void nextTuple() override { prev_->nextTuple(); }
 
     std::unique_ptr<RmRecord> Next() override {
+        if (limit_ != -1) limit_--;
         // 先得到表中全部字段
         auto& prev_cols = prev_->cols();
         // 得到满足 where 条件的记录
@@ -70,5 +73,5 @@ class ProjectionExecutor : public AbstractExecutor {
 
     const std::vector<ColMeta> &cols() const override { return cols_; }
 
-    bool is_end() const override { return prev_->is_end(); }
+    bool is_end() const override { return prev_->is_end() ? true : limit_ == 0; }
 };
