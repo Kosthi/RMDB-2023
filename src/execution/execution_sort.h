@@ -64,14 +64,16 @@ class SortExecutor : public AbstractExecutor {
             intervals.clear();
             for (auto& [l, r] : curr_interval) {
                 quicksort(tuples_, l, r - 1);
-                for (int i = l, j = l + 1; j < r; ++j) {
-                    while (j < r && !compare(tuples_[i]->data, tuples_[j]->data, true)) {
-                        ++j;
+                if (levels + 1 < order_cols_.size()) {
+                    for (int i = l, j = l + 1; j < r; ++j) {
+                        while (j < r && !compare(tuples_[i]->data, tuples_[j]->data, true)) {
+                            ++j;
+                        }
+                        if (j - i > 1) {
+                            intervals.emplace_back(i, j);
+                        }
+                        i = j;
                     }
-                    if (j - i > 1) {
-                        intervals.emplace_back(i, j);
-                    }
-                    i = j;
                 }
             }
             if (intervals.empty()) return;
@@ -84,7 +86,7 @@ class SortExecutor : public AbstractExecutor {
     }
 
     std::unique_ptr<RmRecord> Next() override {
-        if (tuples_.empty()) return nullptr;
+        assert(!tuples_.empty());
         return std::move(tuples_[tuple_num]);
     }
 
@@ -92,15 +94,16 @@ class SortExecutor : public AbstractExecutor {
 
     const std::vector<ColMeta> &cols() const override { return cols_; }
 
-    bool is_end() const override { return tuple_num == tuples_.size(); }
+    bool is_end() const override { return tuples_.empty() || tuple_num == tuples_.size(); }
 
     // Quicksort algorithm for sorting the data
     void quicksort(std::vector<std::unique_ptr<RmRecord>>& tuples, int l, int r) {
         if (l >= r) return;
-        int x = l + (r - l) / 2, i = l - 1, j = r + 1;
+        char* x = tuples[l + (r - l) / 2]->data;
+        int i = l - 1, j = r + 1;
         while (i < j) {
-            do i++; while (compare(tuples[i]->data, tuples[x]->data, true));
-            do j--; while (compare(tuples[j]->data, tuples[x]->data, false));
+            do ++i; while (compare(tuples[i]->data, x, true));
+            do --j; while (compare(tuples[j]->data, x, false));
             if (i < j) std::iter_swap(&tuples[i], &tuples[j]);
         }
         quicksort(tuples, l, j);
@@ -115,6 +118,7 @@ class SortExecutor : public AbstractExecutor {
         }
         return false;
     }
+
     /**
     * @description: 比较数据数值
     *
