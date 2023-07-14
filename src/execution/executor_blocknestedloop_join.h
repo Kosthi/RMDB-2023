@@ -15,8 +15,9 @@ See the Mulan PSL v2 for more details. */
 #include "index/ix.h"
 #include "system/sm.h"
 
-#define JOIN_BUFFER_SIZE 8388608
-
+#define JOIN_BUFFER_SIZE 8388608 // 设置为8MB
+// 未来可以增加的功能
+// 小表左，大表右；大表能全部放下的话，right读完了，不需要再重新读right
 class BlockNestedLoopJoinExecutor : public AbstractExecutor {
 private:
     // left_, right_ seq_scan或index_scan 的实例
@@ -27,10 +28,10 @@ private:
 
     std::vector<Condition> fed_conds_;          // join条件
 
-    std::vector<std::unique_ptr<RmRecord>> left_block_;
-    std::vector<std::unique_ptr<RmRecord>> right_block_;
-    size_t left_block_idx_;
-    size_t right_block_idx_;
+    std::vector<std::unique_ptr<RmRecord>> left_block_;  // 左表块
+    std::vector<std::unique_ptr<RmRecord>> right_block_; // 右表块
+    size_t left_block_idx_;  // 左表块索引
+    size_t right_block_idx_; // 右表块索引
 
 public:
     BlockNestedLoopJoinExecutor(std::unique_ptr<AbstractExecutor> left, std::unique_ptr<AbstractExecutor> right,
