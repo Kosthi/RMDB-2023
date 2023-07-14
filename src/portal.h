@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include "optimizer/plan.h"
 #include "execution/executor_abstract.h"
 #include "execution/executor_nestedloop_join.h"
+#include "execution/executor_blocknestedloop_join.h"
 #include "execution/executor_projection.h"
 #include "execution/executor_seq_scan.h"
 #include "execution/executor_index_scan.h"
@@ -166,7 +167,7 @@ class Portal
         } else if(auto x = std::dynamic_pointer_cast<JoinPlan>(plan)) {
             std::unique_ptr<AbstractExecutor> left = convert_plan_executor(x->left_, context);
             std::unique_ptr<AbstractExecutor> right = convert_plan_executor(x->right_, context);
-            std::unique_ptr<AbstractExecutor> join = std::make_unique<NestedLoopJoinExecutor>(
+            std::unique_ptr<AbstractExecutor> join = std::make_unique<BlockNestedLoopJoinExecutor>(
                                 std::move(left), 
                                 std::move(right), std::move(x->conds_));
             return join;
