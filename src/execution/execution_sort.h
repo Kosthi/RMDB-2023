@@ -22,8 +22,8 @@ class SortExecutor : public AbstractExecutor {
     std::vector<ColMeta> order_cols_;
     size_t tuple_num;
     std::vector<bool> is_desc_;
-    std::vector<size_t> used_tuple;
-    std::unique_ptr<RmRecord> current_tuple;
+    // std::vector<size_t> used_tuple;
+    // std::unique_ptr<RmRecord> current_tuple;
     std::vector<std::unique_ptr<RmRecord>> tuples_;
     std::vector<ColType> col_types;
     std::vector<int> col_lens;
@@ -37,7 +37,7 @@ class SortExecutor : public AbstractExecutor {
         order_cols_ = prev_->get_col_offset(sel_cols);
         is_desc_ = std::move(is_desc);
         tuple_num = 0;
-        used_tuple.clear();
+        // used_tuple.clear();
         levels = 0;
     }
 
@@ -49,21 +49,21 @@ class SortExecutor : public AbstractExecutor {
         if (tuples_.empty()) return;
 
         tuple_num = 0;
-        used_tuple.clear();
+        // used_tuple.clear();
 
         for (auto& order_col : order_cols_) {
             col_types.emplace_back(order_col.type);
             col_lens.emplace_back(order_col.len);
         }
 
-        intervals.emplace_back(std::pair{0, tuples_.size()});
+        intervals.emplace_back(0, tuples_.size());
 
         while (levels < order_cols_.size()) {
             // 第1 - n级排序
             auto curr_interval = intervals;
             intervals.clear();
             for (auto& [l, r] : curr_interval) {
-                quicksort(tuples_, l, r - 1);
+                quicksort(l, r - 1);
                 if (levels + 1 < order_cols_.size()) {
                     for (int i = l, j = l + 1; j < r; ++j) {
                         while (j < r && !compare(tuples_[i]->data, tuples_[j]->data, true)) {
@@ -97,23 +97,23 @@ class SortExecutor : public AbstractExecutor {
     bool is_end() const override { return tuples_.empty() || tuple_num == tuples_.size(); }
 
     // Quicksort algorithm for sorting the data
-    void quicksort(std::vector<std::unique_ptr<RmRecord>>& tuples, int l, int r) {
+    void quicksort(int l, int r) {
         if (l >= r) return;
-        char* x = tuples[l + (r - l) / 2]->data;
+        char* x = tuples_[l + ((r - l) >> 1)]->data;
         int i = l - 1, j = r + 1;
         while (i < j) {
-            do ++i; while (compare(tuples[i]->data, x, true));
-            do --j; while (compare(tuples[j]->data, x, false));
-            if (i < j) std::iter_swap(&tuples[i], &tuples[j]);
+            do ++i; while (compare(tuples_[i]->data, x, true));
+            do --j; while (compare(tuples_[j]->data, x, false));
+            if (i < j) std::iter_swap(&tuples_[i], &tuples_[j]);
         }
-        quicksort(tuples, l, j);
-        quicksort(tuples, j + 1, r);
+        quicksort(l, j);
+        quicksort(j + 1, r);
     }
 
     inline bool compare(const char* a, const char* b, bool is_LT) {
         int res = compare(a + order_cols_[levels].offset, b + order_cols_[levels].offset, col_lens[levels],
                           col_types[levels]);
-        if (res != 0) {
+        if (res) {
             return is_LT ? (is_desc_[levels] ? res > 0 : res < 0) : (is_desc_[levels] ? res < 0 : res > 0);
         }
         return false;
