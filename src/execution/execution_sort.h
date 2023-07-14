@@ -34,7 +34,7 @@ class SortExecutor : public AbstractExecutor {
     SortExecutor(std::unique_ptr<AbstractExecutor> prev, std::vector<TabCol> sel_cols, std::vector<bool> is_desc) {
         prev_ = std::move(prev);
         cols_ = prev_->cols();
-        order_cols_ = prev_->get_col_offset(sel_cols);
+        order_cols_ = get_col_offset(sel_cols);
         is_desc_ = std::move(is_desc);
         tuple_num = 0;
         // used_tuple.clear();
@@ -148,5 +148,13 @@ class SortExecutor : public AbstractExecutor {
             default:
                 throw InternalError("Unexpected data type");
         }
+    }
+
+    std::vector<ColMeta> get_col_offset(std::vector<TabCol>& targets) override {
+        std::vector<ColMeta> cols_meta;
+        for (auto& target : targets) {
+            cols_meta.emplace_back(*get_col(cols_, target));
+        }
+        return cols_meta;
     }
 };

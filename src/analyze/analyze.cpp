@@ -47,12 +47,19 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
             // infer table name from column name
             // select t.id, or id
             for (auto &sel_col : query->cols) {
-                sel_col = check_column(all_cols, sel_col);  // 列元数据校验
+                check_column(all_cols, sel_col);  // 列元数据校验
             }
         }
         //处理where条件
         get_clause(x->conds, query->conds);
         check_clause(query->tables, query->conds);
+        // 处理order_Clause
+        for (auto& order : x->orders) {
+            TabCol order_col = {.tab_name = order->col->tab_name, .col_name = order->col->col_name};
+            check_column(all_cols, order_col);
+            order->col->tab_name = order_col.tab_name;
+            order->col->col_name = order_col.col_name;
+        }
         // 限制记录条数
         query->limit = x->limit;
     } else if (auto x = std::dynamic_pointer_cast<ast::UpdateStmt>(parse)) {
@@ -100,7 +107,7 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
 }
 
 
-TabCol Analyze::check_column(const std::vector<ColMeta> &all_cols, TabCol target) {
+void Analyze::check_column(const std::vector<ColMeta>& all_cols, TabCol& target) {
     if (target.tab_name.empty()) {
         // Table name not specified, infer table name from column name
         std::string tab_name;
@@ -130,7 +137,6 @@ TabCol Analyze::check_column(const std::vector<ColMeta> &all_cols, TabCol target
             throw ColumnNotFoundError(target.col_name);
         }
     }
-    return target;
 }
 
 void Analyze::get_all_cols(const std::vector<std::string> &tab_names, std::vector<ColMeta> &all_cols) {
@@ -165,9 +171,9 @@ void Analyze::check_clause(const std::vector<std::string> &tab_names, std::vecto
     // Get raw values in where clause
     for (auto &cond : conds) {
         // Infer table name from column name
-        cond.lhs_col = check_column(all_cols, cond.lhs_col);
+        check_column(all_cols, cond.lhs_col);
         if (!cond.is_rhs_val) {
-            cond.rhs_col = check_column(all_cols, cond.rhs_col);
+            check_column(all_cols, cond.rhs_col);
         }
         TabMeta &lhs_tab = sm_manager_->db_.get_table(cond.lhs_col.tab_name);
         auto lhs_col = lhs_tab.get_col(cond.lhs_col.col_name);

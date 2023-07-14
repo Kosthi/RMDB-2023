@@ -52,7 +52,7 @@ public:
     std::shared_ptr<Query> do_analyze(std::shared_ptr<ast::TreeNode> root);
 
 private:
-    TabCol check_column(const std::vector<ColMeta> &all_cols, TabCol target);
+    void check_column(const std::vector<ColMeta>& all_cols, TabCol& target);
     void get_all_cols(const std::vector<std::string> &tab_names, std::vector<ColMeta> &all_cols);
     void get_clause(const std::vector<std::shared_ptr<ast::BinaryExpr>> &sv_conds, std::vector<Condition> &conds);
     void check_clause(const std::vector<std::string> &tab_names, std::vector<Condition> &conds);

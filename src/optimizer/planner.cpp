@@ -321,10 +321,7 @@ std::shared_ptr<Plan> Planner::generate_sort_plan(std::shared_ptr<Query> query, 
     // Analyze阶段check_column已检查列名存在性和唯一性
     for (auto& order : x->orders) {
         is_desc.emplace_back(order->orderby_dir == ast::OrderBy_DESC);
-        auto pos = std::find_if(all_cols.begin(), all_cols.end(), [&](const ColMeta &colMeta) {
-            return colMeta.name == order->cols->col_name;
-        });
-        sel_cols.emplace_back(TabCol{pos->tab_name, pos->name});
+        sel_cols.emplace_back(TabCol{order->col->tab_name, order->col->col_name});
     }
 
     return std::make_shared<SortPlan>(T_Sort, std::move(plan), std::move(sel_cols), std::move(is_desc));
