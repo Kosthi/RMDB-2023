@@ -103,6 +103,8 @@ void QlManager::run_cmd_utility(std::shared_ptr<Plan> plan, txn_id_t *txn_id, Co
             case T_Transaction_begin:
             {
                 // 显示开启一个事务
+                context->txn_ = txn_mgr_->get_transaction(*txn_id);
+                context->txn_ = txn_mgr_->begin(context->txn_, context->log_mgr_);
                 context->txn_->set_txn_mode(true);
                 break;
             }  

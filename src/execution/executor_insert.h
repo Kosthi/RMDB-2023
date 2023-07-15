@@ -80,7 +80,8 @@ class InsertExecutor : public AbstractExecutor {
         rid_ = fh_->insert_record(rec.data, context_);
         // Insert into index
         for (auto& index : tab_.indexes) {
-            auto ih = sm_manager_->ihs_.at(sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
+            auto index_name = sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols);
+            auto ih = sm_manager_->ihs_.at(index_name).get();
             char* key = new char[index.col_tot_len + 4];
             memcpy(key + index.col_tot_len, &idx, 4);
             int offset = 0;
@@ -89,8 +90,14 @@ class InsertExecutor : public AbstractExecutor {
                 offset += index.cols[i].len;
             }
             ih->insert_entry(key, rid_, context_->txn_);
+            auto rm = RmRecord(index.col_tot_len + 4, key);
+            WriteRecord* wr = new WriteRecord(WType::INSERT_TUPLE, rid_, rm, index_name);
+            context_->txn_->append_write_record(wr);
             delete[] key;
         }
+        // 因为插入操作只有插入后才能得到rid信息，所以事务只需要存rid，在事务提交时不用再进行写操作
+        WriteRecord* wr = new WriteRecord(WType::INSERT_TUPLE, tab_name_, rid_);
+        context_->txn_->append_write_record(wr);
         return nullptr;
     }
     Rid &rid() override { return rid_; }

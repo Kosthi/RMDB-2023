@@ -115,8 +115,8 @@ public:
             }
             // 通过检查，更新索引
             for (auto &index: tab_.indexes) {
-                auto ih = sm_manager_->ihs_.at(
-                        sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols)).get();
+                auto index_name = sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols);
+                auto ih = sm_manager_->ihs_.at(index_name).get();
                 char *update_data = new char[index.col_tot_len + 4];
                 char *old_data = new char[index.col_tot_len + 4];
                 memcpy(update_data + index.col_tot_len, &idx, 4);
@@ -129,6 +129,10 @@ public:
                 }
                 assert(ih->delete_entry(old_data, context_->txn_));
                 ih->insert_entry(update_data, rids_[i], context_->txn_);
+                auto rm_old = RmRecord(index.col_tot_len + 4, old_data);
+                auto rm_update = RmRecord(index.col_tot_len + 4, update_data);
+                WriteRecord* wr = new WriteRecord(WType::UPDATE_TUPLE, rids_[i], rm_old, rm_update, index_name);
+                context_->txn_->append_write_record(wr);
                 old_datas[i].emplace_back(old_data);
                 new_datas[i].emplace_back(update_data);
             }
@@ -138,38 +142,11 @@ public:
         // 更新记录
         for (size_t i = 0; i < rids_.size(); ++i) {
             fh_->update_record(rids_[i], new_records[i].data, context_);
+            WriteRecord* wr = new WriteRecord(WType::UPDATE_TUPLE, tab_name_, rids_[i], old_records[i]);
+            context_->txn_->append_write_record(wr);
         }
         return nullptr;
     }
-//        if (tab_.indexes.empty()) return nullptr;
-//        for (size_t i = 0; i < rids_.size(); ++i) {
-//            auto old_record = old_records[i];
-//            auto update_record = new_record[i];
-//            // 更新索引
-//            // 没必要? 优化 索引不包含set的任何字段
-//            for (auto& index : tab_.indexes) {
-//                // std::find_if(index.cols.begin(), index.cols.end(),)
-//                char* old_delete_rec = new char[index.col_tot_len + 4];
-//                char* new_insert_rec = new char[index.col_tot_len + 4];
-//                memcpy(old_delete_rec + index.col_tot_len, &idx, 4);
-//                memcpy(new_insert_rec + index.col_tot_len, &idx, 4);
-//                auto index_name = sm_manager_->get_ix_manager()->get_index_name(tab_name_, index.cols);
-//                auto ih = sm_manager_->ihs_.at(index_name).get();
-//                int offset = 0;
-//                for (auto& index_col : index.cols) {
-//                    memcpy(old_delete_rec + offset, old_record.data + index_col.offset, index_col.len);
-//                    memcpy(new_insert_rec + offset, update_record.data + index_col.offset, index_col.len);
-//                    offset += index_col.len;
-//                }
-//
-//                if (!ih->delete_entry(old_delete_rec, context_->txn_)) {
-//                    throw IndexEntryNotFoundError();
-//                }
-//                ih->insert_entry(new_insert_rec, rids_[i], context_->txn_);
-//                delete[] old_delete_rec;
-//                delete[] new_insert_rec;
-//            }
-//        }
 
     Rid &rid() override { return _abstract_rid; }
 };
