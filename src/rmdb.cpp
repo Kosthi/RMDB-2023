@@ -90,10 +90,30 @@ void *client_handler(void *sock_fd) {
         i_recvBytes = read(fd, data_recv, BUFFER_LENGTH);
 
         if (i_recvBytes == 0) {
+            // 对未正常完成的显性事务进行回滚
+            txn_id_t txnId = txn_id;
+            while (txnId != INVALID_TXN_ID) {
+                auto txn = txn_manager->get_transaction(txn_id);
+                if (txn->get_txn_mode() && !(txn->get_state() == TransactionState::COMMITTED ||
+                                             txn->get_state() == TransactionState::ABORTED)) {
+                    txn_manager->abort(txn, log_manager.get());
+                }
+                --txnId;
+            }
             std::cout << "Maybe the client has closed" << std::endl;
             break;
         }
         if (i_recvBytes == -1) {
+            // 对未正常完成的显性事务进行回滚
+            txn_id_t txnId = txn_id;
+            while (txnId != INVALID_TXN_ID) {
+                auto txn = txn_manager->get_transaction(txn_id);
+                if (txn->get_txn_mode() && !(txn->get_state() == TransactionState::COMMITTED ||
+                                             txn->get_state() == TransactionState::ABORTED)) {
+                    txn_manager->abort(txn, log_manager.get());
+                }
+                --txnId;
+            }
             std::cout << "Client read error!" << std::endl;
             break;
         }
@@ -101,10 +121,30 @@ void *client_handler(void *sock_fd) {
         printf("i_recvBytes: %d \n ", i_recvBytes);
 
         if (strcmp(data_recv, "exit") == 0) {
+            // 对未正常完成的显性事务进行回滚
+            txn_id_t txnId = txn_id;
+            while (txnId != INVALID_TXN_ID) {
+                auto txn = txn_manager->get_transaction(txn_id);
+                if (txn->get_txn_mode() && !(txn->get_state() == TransactionState::COMMITTED ||
+                                             txn->get_state() == TransactionState::ABORTED)) {
+                    txn_manager->abort(txn, log_manager.get());
+                }
+                --txnId;
+            }
             std::cout << "Client exit." << std::endl;
             break;
         }
         if (strcmp(data_recv, "crash") == 0) {
+            // 对未正常完成的显性事务进行回滚
+            txn_id_t txnId = txn_id;
+            while (txnId != INVALID_TXN_ID) {
+                auto txn = txn_manager->get_transaction(txn_id);
+                if (txn->get_txn_mode() && !(txn->get_state() == TransactionState::COMMITTED ||
+                                             txn->get_state() == TransactionState::ABORTED)) {
+                    txn_manager->abort(txn, log_manager.get());
+                }
+                --txnId;
+            }
             std::cout << "Server crash" << std::endl;
             exit(1);
         }
