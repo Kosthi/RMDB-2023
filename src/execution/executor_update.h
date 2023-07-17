@@ -142,7 +142,7 @@ public:
         // 更新记录
         for (size_t i = 0; i < rids_.size(); ++i) {
             fh_->update_record(rids_[i], new_records[i].data, context_);
-            RmRecord old_rec(old_records[i].size, new_records[i].data);
+            RmRecord old_rec(old_records[i].size, old_records[i].data);
             WriteRecord* wr = new WriteRecord(WType::UPDATE_TUPLE, tab_name_, rids_[i], old_rec);
             context_->txn_->append_write_record(wr);
         }
