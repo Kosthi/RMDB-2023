@@ -90,7 +90,7 @@ class InsertExecutor : public AbstractExecutor {
                 offset += index.cols[i].len;
             }
             ih->insert_entry(key, rid_, context_->txn_);
-            auto rm = RmRecord(index.col_tot_len + 4, key);
+            RmRecord rm(index.col_tot_len + 4, key);
             WriteRecord* wr = new WriteRecord(WType::INSERT_TUPLE, rid_, rm, index_name);
             context_->txn_->append_write_record(wr);
             delete[] key;

@@ -54,13 +54,14 @@ class DeleteExecutor : public AbstractExecutor {
                 if (!ih->delete_entry(delete_rec, context_->txn_)) {
                     throw IndexEntryNotFoundError();
                 }
-                auto rm = RmRecord(index.col_tot_len + 4, delete_rec);
-                WriteRecord* wr = new WriteRecord(WType::INSERT_TUPLE, rid, rm, index_name);
+                RmRecord rm(index.col_tot_len + 4, delete_rec);
+                WriteRecord* wr = new WriteRecord(WType::DELETE_TUPLE, rid, rm, index_name);
                 context_->txn_->append_write_record(wr);
                 delete[] delete_rec;
             }
             fh_->delete_record(rid, context_);
-            WriteRecord* wr = new WriteRecord(WType::DELETE_TUPLE, tab_name_, rid, *rm_record);
+            RmRecord delete_rec(rm_record->size, rm_record->data);
+            WriteRecord* wr = new WriteRecord(WType::DELETE_TUPLE, tab_name_, rid, delete_rec);
             context_->txn_->append_write_record(wr);
         }
         return nullptr;

@@ -51,10 +51,10 @@ void TransactionManager::commit(Transaction* txn, LogManager* log_manager) {
     // 5. 更新事务状态
 
     // 什么叫作未提交
-    if (!txn->get_write_set()->empty()) {
-        for (auto& write_record : *txn->get_write_set()) {
-            auto file_handle = sm_manager_->fhs_.at(write_record->GetTableName()).get();
-            sm_manager_->get_bpm()->flush_all_pages(file_handle->GetFd());
+    // if (!txn->get_write_set()->empty()) {
+    //     for (auto& write_record : *txn->get_write_set()) {
+    //        auto file_handle = sm_manager_->fhs_.at(write_record->GetTableName()).get();
+    //        sm_manager_->get_bpm()->flush_all_pages(file_handle->GetFd());
 //            switch (write_record->GetWriteType()) {
 //                case WType::INSERT_TUPLE: {
 //                    file_handle->insert_record(write_record->GetRid(), write_record->GetRecord().data);
@@ -66,8 +66,8 @@ void TransactionManager::commit(Transaction* txn, LogManager* log_manager) {
 //                    file_handle->update_record(write_record->GetRid(), write_record->GetRecord().data, nullptr);
 //                }   break;
 //            }
-        }
-    }
+
+// }
 
     // 释放所有锁
     for (auto& lock : *txn->get_lock_set()) {
@@ -100,6 +100,7 @@ void TransactionManager::abort(Transaction * txn, LogManager *log_manager) {
 
     // 回滚所有写操作
     auto q = txn->get_write_set();
+    Context context(lock_manager_, log_manager, txn);
     while (!q->empty()) {
         auto write_record = q->back();
         q->pop_back();
@@ -108,7 +109,7 @@ void TransactionManager::abort(Transaction * txn, LogManager *log_manager) {
             auto fh = sm_manager_->fhs_.at(write_record->GetTableName()).get();
             switch (write_record->GetWriteType()) {
                 case WType::INSERT_TUPLE: {
-                    fh->delete_record(write_record->GetRid(), nullptr);
+                    fh->delete_record(write_record->GetRid(), &context);
                 }
                     break;
                 case WType::DELETE_TUPLE: {
@@ -116,7 +117,7 @@ void TransactionManager::abort(Transaction * txn, LogManager *log_manager) {
                 }
                     break;
                 case WType::UPDATE_TUPLE: {
-                    fh->update_record(write_record->GetRid(), write_record->GetRecord().data, nullptr);
+                    fh->update_record(write_record->GetRid(), write_record->GetRecord().data, &context);
                 }
                     break;
                 default:
@@ -130,16 +131,16 @@ void TransactionManager::abort(Transaction * txn, LogManager *log_manager) {
             auto ih = sm_manager_->ihs_.at(write_record->GetIndexName()).get();
             switch (write_record->GetWriteType()) {
                 case WType::INSERT_TUPLE: {
-                    ih->delete_entry(write_record->GetRecord().data, nullptr);
+                    ih->delete_entry(write_record->GetRecord().data, txn);
                 }
                     break;
                 case WType::DELETE_TUPLE: {
-                    ih->insert_entry(write_record->GetRecord().data, write_record->GetRid(), nullptr);
+                    ih->insert_entry(write_record->GetRecord().data, write_record->GetRid(), txn);
                 }
                     break;
                 case WType::UPDATE_TUPLE: {
-                    ih->delete_entry(write_record->GetUpdatedRecord().data, nullptr);
-                    ih->insert_entry(write_record->GetOldRecord().data, write_record->GetRid(), nullptr);
+                    ih->delete_entry(write_record->GetUpdatedRecord().data, txn);
+                    ih->insert_entry(write_record->GetOldRecord().data, write_record->GetRid(), txn);
                 }
                     break;
                 default:

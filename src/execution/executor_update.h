@@ -129,8 +129,8 @@ public:
                 }
                 assert(ih->delete_entry(old_data, context_->txn_));
                 ih->insert_entry(update_data, rids_[i], context_->txn_);
-                auto rm_old = RmRecord(index.col_tot_len + 4, old_data);
-                auto rm_update = RmRecord(index.col_tot_len + 4, update_data);
+                RmRecord rm_old(index.col_tot_len + 4, old_data);
+                RmRecord rm_update(index.col_tot_len + 4, update_data);
                 WriteRecord* wr = new WriteRecord(WType::UPDATE_TUPLE, rids_[i], rm_old, rm_update, index_name);
                 context_->txn_->append_write_record(wr);
                 old_datas[i].emplace_back(old_data);
@@ -142,7 +142,8 @@ public:
         // 更新记录
         for (size_t i = 0; i < rids_.size(); ++i) {
             fh_->update_record(rids_[i], new_records[i].data, context_);
-            WriteRecord* wr = new WriteRecord(WType::UPDATE_TUPLE, tab_name_, rids_[i], old_records[i]);
+            RmRecord update_rec(new_records[i].size, new_records[i].data);
+            WriteRecord* wr = new WriteRecord(WType::UPDATE_TUPLE, tab_name_, rids_[i], update_rec);
             context_->txn_->append_write_record(wr);
         }
         return nullptr;
