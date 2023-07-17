@@ -51,6 +51,10 @@ class InsertExecutor : public AbstractExecutor {
                     val.set_int(static_cast<int>(val.bigint_val));
                 }
             }
+            // 题目9 日期向字符串的转换
+            else if (col.type == TYPE_STRING && val.type == TYPE_DATETIME) {
+                val.set_str(val.datetime_val.to_string());
+            }
             if (col.type != val.type) {
                 throw IncompatibleTypeError(coltype2str(col.type), coltype2str(val.type));
             }

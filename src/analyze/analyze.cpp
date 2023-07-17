@@ -207,6 +207,11 @@ void Analyze::check_clause(const std::vector<std::string> &tab_names, std::vecto
             else if (lhs_type == TYPE_DATETIME && cond.rhs_val.type == TYPE_DATETIME) {
                 cond.rhs_val.init_raw(lhs_col->len);
             }
+            // 题目9 日期向字符串的转换
+            else if (lhs_type == TYPE_STRING && cond.rhs_val.type == TYPE_DATETIME) {
+                cond.rhs_val.set_str(cond.rhs_val.datetime_val.to_string());
+                cond.rhs_val.init_raw(lhs_col->len);
+            }
             else {
                 cond.rhs_val.init_raw(lhs_col->len);
             }
