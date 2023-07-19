@@ -386,7 +386,7 @@ void SmManager::drop_index(const std::string& tab_name, const std::vector<std::s
         throw IndexNotFoundError(tab_name, col_names);
     }
 
-    // 删除索引要读表上的所有记录，所以申请表级读锁
+    // 删除索引时只允许对表读操作，写操作可能会误写将被删除的索引，所以申请表级读锁
     context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
 
     auto ih = std::move(ihs_.at(index_name));
@@ -422,7 +422,7 @@ void SmManager::drop_index(const std::string& tab_name, const std::vector<ColMet
         throw IndexNotFoundError(tab_name, cols_name);
     }
 
-    // 删除索引要读表上的所有记录，所以申请表级读锁
+    // 删除索引时只允许对表读操作，写操作可能会误写将被删除的索引，所以申请表级读锁
     context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
 
     auto ih = std::move(ihs_.at(index_name));

@@ -63,6 +63,8 @@ class IndexScanExecutor : public AbstractExecutor {
         }
         fed_conds_ = conds_;
         std::reverse(fed_conds_.begin(), fed_conds_.end());
+        // 扫索引会读部分或全部记录，取排他性最大的S锁
+        context_->lock_mgr_->lock_shared_on_table(context->txn_, fh_->GetFd());
     }
 
     void beginTuple() override {

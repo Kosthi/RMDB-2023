@@ -39,10 +39,10 @@ class SeqScanExecutor : public AbstractExecutor {
         fh_ = sm_manager_->fhs_.at(tab_name_).get();
         cols_ = tab.cols;
         len_ = cols_.back().offset + cols_.back().len;
-
         context_ = context;
-
         fed_conds_ = conds_;
+        // 加表级读锁
+        context_->lock_mgr_->lock_shared_on_table(context->txn_, fh_->GetFd());
     }
 
     /**
