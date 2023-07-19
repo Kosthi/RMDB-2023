@@ -49,26 +49,6 @@ void TransactionManager::commit(Transaction* txn, LogManager* log_manager) {
     // 4. 把事务日志刷入磁盘中
     // 5. 更新事务状态
 
-    // 什么叫作未提交
-    // if (!txn->get_write_set()->empty()) {
-    //     for (auto& write_record : *txn->get_write_set()) {
-    //        auto file_handle = sm_manager_->fhs_.at(write_record->GetTableName()).get();
-    //        sm_manager_->get_bpm()->flush_all_pages(file_handle->GetFd());
-//            switch (write_record->GetWriteType()) {
-//                case WType::INSERT_TUPLE: {
-//                    file_handle->insert_record(write_record->GetRid(), write_record->GetRecord().data);
-//                }   break;
-//                case WType::DELETE_TUPLE: {
-//                    file_handle->delete_record(write_record->GetRid(), nullptr);
-//                }   break;
-//                case WType::UPDATE_TUPLE: {
-//                    file_handle->update_record(write_record->GetRid(), write_record->GetRecord().data, nullptr);
-//                }   break;
-//            }
-
-// }
-    std::lock_guard<std::mutex> lock(latch_);
-
     // 释放所有锁
     for (auto& lock : *txn->get_lock_set()) {
         lock_manager_->unlock(txn, lock);
@@ -97,8 +77,6 @@ void TransactionManager::abort(Transaction * txn, LogManager *log_manager) {
     // 3. 清空事务相关资源，eg.锁集
     // 4. 把事务日志刷入磁盘中
     // 5. 更新事务状态
-
-    std::lock_guard<std::mutex> lock(latch_);
 
     // 回滚所有写操作
     auto q = txn->get_write_set();
