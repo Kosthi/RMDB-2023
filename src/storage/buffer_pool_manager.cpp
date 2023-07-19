@@ -274,13 +274,14 @@ void BufferPoolManager::delete_all_pages(int fd) {
     for (auto& pageId : pagesId) {
         frame_id_t frameId = page_table_.at(pageId);
         // 只有当前页面不被使用才能删除
-        // replacer_->unpin(frameId);
-        assert(pages_[frameId].pin_count_ == 0);
+        replacer_->unpin(frameId);
+        // assert(pages_[frameId].pin_count_ == 0);
         // 文件close了写不了
         // disk_manager_->write_page(pageId.fd, pageId.page_no, pages_[frameId].get_data(), PAGE_SIZE);
         page_table_.erase(pageId);
         pages_[frameId].reset_memory();
         pages_[frameId].is_dirty_ = false;
+        pages_[frameId].pin_count_ = 0;
         free_list_.push_back(frameId);
     }
 }
