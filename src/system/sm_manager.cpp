@@ -267,6 +267,9 @@ void SmManager::create_table(const std::string& tab_name, const std::vector<ColD
     // fhs_[tab_name] = rm_manager_->open_file(tab_name);
     fhs_.emplace(tab_name, rm_manager_->open_file(tab_name));
 
+    // 申请表级写锁
+    context->lock_mgr_->lock_exclusive_on_table(context->txn_, fhs_[tab_name]->GetFd());
+
     flush_meta();
 }
 
@@ -280,6 +283,9 @@ void SmManager::drop_table(const std::string& tab_name, Context* context) {
     if (!db_.is_table(tab_name)) {
         throw TableNotFoundError(tab_name);
     }
+
+    // 申请表级写锁
+    context->lock_mgr_->lock_exclusive_on_table(context->txn_, fhs_[tab_name]->GetFd());
 
     // 先获取表元数据
     TabMeta& tab = db_.get_table(tab_name);
@@ -316,6 +322,10 @@ void SmManager::create_index(const std::string& tab_name, const std::vector<std:
     if (tab.is_index(col_names)) {
         throw IndexExistsError(tab_name, col_names);
     }
+
+    // 建立索引要读表上的所有记录，所以申请表级读锁
+    context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
+
     std::vector<ColMeta> cols;
     int tot_col_len = 0;
     for (auto& col_name : col_names) {
@@ -376,6 +386,9 @@ void SmManager::drop_index(const std::string& tab_name, const std::vector<std::s
         throw IndexNotFoundError(tab_name, col_names);
     }
 
+    // 删除索引要读表上的所有记录，所以申请表级读锁
+    context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
+
     auto ih = std::move(ihs_.at(index_name));
     // 先关闭再清除索引文件
     ix_manager_->close_index(ih.get());
@@ -408,6 +421,9 @@ void SmManager::drop_index(const std::string& tab_name, const std::vector<ColMet
     if (ihs_.count(index_name) == 0) {
         throw IndexNotFoundError(tab_name, cols_name);
     }
+
+    // 删除索引要读表上的所有记录，所以申请表级读锁
+    context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
 
     auto ih = std::move(ihs_.at(index_name));
     // 先关闭再清除索引文件

@@ -21,6 +21,9 @@ std::unique_ptr<RmRecord> RmFileHandle::get_record(const Rid& rid, Context* cont
     // 1. 获取指定记录所在的page handle
     // 2. 初始化一个指向RmRecord的指针（赋值其内部的data和size）
 
+    // 申请行级读锁
+    context->lock_mgr_->lock_shared_on_record(context->txn_, rid, fd_);
+
     RmPageHandle rmPageHandle = fetch_page_handle(rid.page_no);
     // 检查 slot是否存在
     if (!Bitmap::is_set(rmPageHandle.bitmap, rid.slot_no)) {
@@ -47,6 +50,10 @@ Rid RmFileHandle::insert_record(char* buf, Context* context) {
     auto pageHandle = create_page_handle();
     int slot_no = Bitmap::first_bit(false, pageHandle.bitmap, file_hdr_.num_records_per_page);
 
+    Rid rid{pageHandle.page->get_page_id().page_no, slot_no};
+    // 申请行级写锁
+    context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
+
     char* slot = pageHandle.get_slot(slot_no);
     memcpy(slot, buf, file_hdr_.record_size);
 
@@ -56,7 +63,7 @@ Rid RmFileHandle::insert_record(char* buf, Context* context) {
     if (pageHandle.page_hdr->num_records == pageHandle.file_hdr->num_records_per_page) {
         file_hdr_.first_free_page_no = pageHandle.page_hdr->next_free_page_no;
     }
-    return Rid{pageHandle.page->get_page_id().page_no, slot_no};
+    return rid;
 }
 
 /**
@@ -83,6 +90,9 @@ void RmFileHandle::delete_record(const Rid& rid, Context* context) {
     // 2. 更新page_handle.page_hdr中的数据结构
     // 注意考虑删除一条记录后页面未满的情况，需要调用release_page_handle()
 
+    // 申请行级写锁
+    context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
+
     auto pageHandle = fetch_page_handle(rid.page_no);
     if (!Bitmap::is_set(pageHandle.bitmap, rid.slot_no)) {
         throw RecordNotFoundError(rid.page_no, rid.slot_no);
@@ -106,6 +116,9 @@ void RmFileHandle::update_record(const Rid& rid, char* buf, Context* context) {
     // Todo:
     // 1. 获取指定记录所在的page handle
     // 2. 更新记录
+
+    // 申请行级写锁
+    context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
 
     auto pageHandle = fetch_page_handle(rid.page_no);
     if (!Bitmap::is_set(pageHandle.bitmap, rid.slot_no)) {

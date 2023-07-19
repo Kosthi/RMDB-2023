@@ -33,7 +33,6 @@ Transaction * TransactionManager::begin(Transaction* txn, LogManager* log_manage
     }
     std::lock_guard<std::mutex> lock(latch_);
     txn_map.emplace(txn->get_transaction_id(), txn);
-    txn->set_state(TransactionState::GROWING);
     return txn;
 }
 
@@ -68,6 +67,7 @@ void TransactionManager::commit(Transaction* txn, LogManager* log_manager) {
 //            }
 
 // }
+    std::lock_guard<std::mutex> lock(latch_);
 
     // 释放所有锁
     for (auto& lock : *txn->get_lock_set()) {
@@ -97,6 +97,8 @@ void TransactionManager::abort(Transaction * txn, LogManager *log_manager) {
     // 3. 清空事务相关资源，eg.锁集
     // 4. 把事务日志刷入磁盘中
     // 5. 更新事务状态
+
+    std::lock_guard<std::mutex> lock(latch_);
 
     // 回滚所有写操作
     auto q = txn->get_write_set();
