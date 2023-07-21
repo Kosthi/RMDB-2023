@@ -12,7 +12,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "ix_defs.h"
 #include "transaction/transaction.h"
-#include <shared_mutex>
+#include "common/rwlatch.h"
 
 // 增加联合索引时查找，对internal_look_up细分模糊上界和模糊下界，防止找到错误的孩子
 enum class Operation { FIND = 0, INSERT, DELETE, FIND_UPPER, FIND_LOWER};  // 三种操作：查找、插入、删除
@@ -71,7 +71,6 @@ class IxNodeHandle {
     IxPageHdr *page_hdr;            // page->data的第一部分，指针指向首地址，长度为sizeof(IxPageHdr)
     char *keys;                     // page->data的第二部分，指针指向首地址，长度为file_hdr->keys_size，每个key的长度为file_hdr->col_len
     Rid *rids;                      // page->data的第三部分，指针指向首地址
-    std::shared_mutex node_latch_;
 
    public:
     IxNodeHandle() = default;

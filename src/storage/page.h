@@ -11,6 +11,7 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "common/config.h"
+#include "common/rwlatch.h"
 
 /**
  * @description: 存储层每个Page的id的声明
@@ -63,6 +64,18 @@ class Page {
 
     bool is_dirty() const { return is_dirty_; }
 
+    /** Acquire the page write latch. */
+    inline void WLatch() { rwlatch_.WLock(); }
+
+    /** Release the page write latch. */
+    inline void WUnlatch() { rwlatch_.WUnlock(); }
+
+    /** Acquire the page read latch. */
+    inline void RLatch() { rwlatch_.RLock(); }
+
+    /** Release the page read latch. */
+    inline void RUnlatch() { rwlatch_.RUnlock(); }
+
     static constexpr size_t OFFSET_PAGE_START = 0;
     static constexpr size_t OFFSET_LSN = 0;
     static constexpr size_t OFFSET_PAGE_HDR = 4;
@@ -87,4 +100,7 @@ class Page {
 
     /** The pin count of this page. */
     int pin_count_ = 0;
+
+    /** Page latch. */
+    ReaderWriterLatch rwlatch_;
 };
