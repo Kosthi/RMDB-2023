@@ -77,7 +77,7 @@ class InsertExecutor : public AbstractExecutor {
                 offset += col.len;
             }
             if (ih->get_value(insert_data, &rid, context_->txn_)) {
-                throw InternalError("不满足唯一性约束！");
+                throw InternalError("Non-Unique Index!");
             }
             delete[] insert_data;
         }

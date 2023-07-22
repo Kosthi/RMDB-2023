@@ -110,7 +110,7 @@ public:
                                 delete[] old_datas[j][k];
                             }
                         }
-                        throw InternalError("不满足唯一性约束！");
+                        throw InternalError("Non-Unique Index!");
                     }
                 }
                 delete[] update_data;
