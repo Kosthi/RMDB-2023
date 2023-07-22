@@ -75,6 +75,10 @@ public:
                         clause.rhs.raw = nullptr;
                         clause.rhs.init_raw(sizeof(int));
                     }
+                } else if (lhs_col_meta->type == TYPE_STRING && clause.rhs.type == TYPE_DATETIME) {
+                    clause.rhs.set_str(clause.rhs.datetime_val.to_string());
+                    clause.rhs.raw = nullptr;
+                    clause.rhs.init_raw(lhs_col_meta->len);
                 } else {
                     clause.rhs.raw = nullptr;
                     clause.rhs.init_raw(lhs_col_meta->len);

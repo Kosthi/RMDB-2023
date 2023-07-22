@@ -9,6 +9,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 #include "analyze.h"
+#include <regex>
 
 /**
  * @description: 分析器，进行语义分析和查询重写，需要检查不符合语义规定的部分
@@ -212,6 +213,20 @@ void Analyze::check_clause(const std::vector<std::string> &tab_names, std::vecto
                 cond.rhs_val.set_str(cond.rhs_val.datetime_val.to_string());
                 cond.rhs_val.init_raw(lhs_col->len);
             }
+//            // 字符串向日期的转换
+//            else if (lhs_type == TYPE_DATETIME && cond.rhs_val.type == TYPE_STRING) {
+//                std::regex pattern("'[1-9][0-9]{3}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1])[ ]([0-1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]'");
+//                if (std::regex_match(cond.rhs_val.str_val, pattern)) {
+//                    uint16_t y;
+//                    uint8_t month, d, h, m, s;
+//                    sscanf(cond.rhs_val.str_val.c_str(), "'%hu-%hhu-%hhu %hhu:%hhu:%hhu'", &y, &month, &d, &h, &m, &s);
+//                    DateTime dateTime = DateTime(y, month, d, h, m, s);
+//                    if (dateTime.valid()) {
+//                        cond.rhs_val.set_datetime(dateTime);
+//                        cond.rhs_val.init_raw(sizeof(DateTime));
+//                    }
+//                }
+//            }
             else {
                 cond.rhs_val.init_raw(lhs_col->len);
             }
