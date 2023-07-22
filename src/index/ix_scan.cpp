@@ -19,6 +19,8 @@ void IxScan::next() {
     IxNodeHandle *node = ih_->fetch_node(iid_.page_no);
     assert(node->is_leaf_page());
     assert(iid_.slot_no < node->get_size());
+    auto page = bpm_->fetch_page(node->get_page_id());
+    page->RLatch();
     // increment slot no
     iid_.slot_no++;
     if (iid_.page_no != ih_->file_hdr_->last_leaf_ && iid_.slot_no == node->get_size()) {
@@ -26,6 +28,8 @@ void IxScan::next() {
         iid_.slot_no = 0;
         iid_.page_no = node->get_next_leaf();
     }
+    bpm_->unpin_page(node->get_page_id(), false);
+    page->RUnlatch();
     bpm_->unpin_page(node->get_page_id(), false);
 }
 

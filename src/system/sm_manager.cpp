@@ -355,6 +355,7 @@ void SmManager::create_index(const std::string& tab_name, const std::vector<std:
             throw InternalError("不满足唯一性约束！");
         }
         assert(ih->insert_entry(insert_data, rmScan.rid(), context->txn_) > 0);
+        delete[] insert_data;
     }
 
     auto index_name = ix_manager_->get_index_name(tab_name, col_names);

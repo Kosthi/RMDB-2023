@@ -91,6 +91,8 @@ class IxNodeHandle {
 
     bool is_full() { return get_size() >= get_max_size(); }
 
+    inline bool is_safe(Operation operation);
+
     int key_at(int i) { return *(int *)get_key(i); }
 
     /* 得到第i个孩子结点的page_no */
@@ -217,9 +219,9 @@ class IxIndexHandle {
     bool coalesce(IxNodeHandle **neighbor_node, IxNodeHandle **node, IxNodeHandle **parent, int index,
                   Transaction *transaction, bool *root_is_latched);
 
-    Iid lower_bound(const char *key);
+    Iid lower_bound(const char *key, Transaction *transaction);
 
-    Iid upper_bound(const char *key);
+    Iid upper_bound(const char *key, Transaction *transaction);
 
     Iid leaf_end() const;
 
@@ -232,6 +234,8 @@ class IxIndexHandle {
     bool is_empty() const { return file_hdr_->root_page_ == IX_NO_PAGE; }
 
     void create_new_root();
+
+    void unlock_page_set(Transaction *transaction);
 
     // for get/create node
     IxNodeHandle *fetch_node(int page_no) const;
