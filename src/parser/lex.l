@@ -42,7 +42,6 @@ value_int [+-]?[0-9]{1,9}
 value_float {sign}?{digit}+\.({digit}+)?
 value_string '[^']*'
 value_bigint [+-]?[0-9]{10,}
-value_datetime '[0-9]{4}-[0-9]{2}-[0-9]{2}[ ][0-9]{2}:[0-9]{2}:[0-9]{2}'
 single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 
 %x STATE_COMMENT
@@ -119,7 +118,7 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
         std::cerr << e.what() << ", Bigint is out of range" << std::endl;
     }
 }
-{value_datetime} {
+{value_string} {
     std::regex pattern("'[1-9][0-9]{3}-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1])[ ]([0-1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]'");
     if (std::regex_match(yytext, pattern)) {
         uint16_t y;
@@ -131,9 +130,6 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
             return VALUE_DATETIME;
         }
     }
-    std::cerr << "Datetime is out of range" << std::endl;
-}
-{value_string} {
     yylval->sv_str = std::string(yytext + 1, strlen(yytext) - 2);
     return VALUE_STRING;
 }

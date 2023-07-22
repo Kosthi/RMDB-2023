@@ -79,7 +79,8 @@ public:
                     clause.rhs.set_str(clause.rhs.datetime_val.to_string());
                     clause.rhs.raw = nullptr;
                     clause.rhs.init_raw(lhs_col_meta->len);
-                } else {
+                }
+                else {
                     clause.rhs.raw = nullptr;
                     clause.rhs.init_raw(lhs_col_meta->len);
                 }
