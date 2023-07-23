@@ -22,7 +22,9 @@ std::unique_ptr<RmRecord> RmFileHandle::get_record(const Rid& rid, Context* cont
     // 2. 初始化一个指向RmRecord的指针（赋值其内部的data和size）
 
     // 申请行级读锁
-    context->lock_mgr_->lock_shared_on_record(context->txn_, rid, fd_);
+    if (context) {
+        context->lock_mgr_->lock_shared_on_record(context->txn_, rid, fd_);
+    }
 
     RmPageHandle rmPageHandle = fetch_page_handle(rid.page_no);
     // 检查 slot是否存在
@@ -52,7 +54,9 @@ Rid RmFileHandle::insert_record(char* buf, Context* context) {
 
     Rid rid{pageHandle.page->get_page_id().page_no, slot_no};
     // 申请行级写锁
-    context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
+    if (context) {
+        context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
+    }
 
     char* slot = pageHandle.get_slot(slot_no);
     memcpy(slot, buf, file_hdr_.record_size);
@@ -91,7 +95,9 @@ void RmFileHandle::delete_record(const Rid& rid, Context* context) {
     // 注意考虑删除一条记录后页面未满的情况，需要调用release_page_handle()
 
     // 申请行级写锁
-    context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
+    if (context) {
+        context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
+    }
 
     auto pageHandle = fetch_page_handle(rid.page_no);
     if (!Bitmap::is_set(pageHandle.bitmap, rid.slot_no)) {
@@ -118,7 +124,9 @@ void RmFileHandle::update_record(const Rid& rid, char* buf, Context* context) {
     // 2. 更新记录
 
     // 申请行级写锁
-    context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
+    if (context) {
+        context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
+    }
 
     auto pageHandle = fetch_page_handle(rid.page_no);
     if (!Bitmap::is_set(pageHandle.bitmap, rid.slot_no)) {
@@ -196,7 +204,7 @@ RmPageHandle RmFileHandle::create_page_handle() {
 /**
  * @description: 当一个页面从没有空闲空间的状态变为有空闲空间状态时，更新文件头和页头中空闲页面相关的元数据
  */
-void RmFileHandle::release_page_handle(RmPageHandle&page_handle) {
+void RmFileHandle::release_page_handle(RmPageHandle& page_handle) {
     // Todo:
     // 当page从已满变成未满，考虑如何更新：
     // 1. page_handle.page_hdr->next_free_page_no
