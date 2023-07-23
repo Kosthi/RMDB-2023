@@ -253,3 +253,34 @@ void BufferPoolManager::flush_all_pages(int fd) {
         }
     }
 }
+
+/**
+ * @description: 将buffer_pool中fd的所有页删除
+ * @param {int} fd 文件句柄
+ */
+void BufferPoolManager::delete_all_pages(int fd) {
+
+    std::scoped_lock lock{latch_};
+
+    std::vector<PageId> pagesId;
+
+    // 不能一边读一边对遍历对象做写操作
+    for (auto& entry : page_table_) {
+        PageId pageId = entry.first;
+        if (pageId.fd == fd && pageId.page_no != INVALID_PAGE_ID) {
+            pagesId.emplace_back(pageId);
+        }
+    }
+    for (auto& pageId : pagesId) {
+        frame_id_t frameId = page_table_.at(pageId);
+        // 只有当前页面不被使用才能删除
+        replacer_->unpin(frameId);
+        // assert(pages_[frameId].pin_count_ == 0);
+        // 文件close了写不了
+        // disk_manager_->write_page(pageId.fd, pageId.page_no, pages_[frameId].get_data(), PAGE_SIZE);
+        page_table_.erase(pageId);
+        pages_[frameId].reset_memory();
+        pages_[frameId].is_dirty_ = false;
+        free_list_.push_back(frameId);
+    }
+}

@@ -133,13 +133,17 @@ class IxManager {
         disk_manager_->close_file(fd);
     }
 
-    void destroy_index(const std::string &filename, const std::vector<ColMeta>& index_cols) {
+    void destroy_index(const IxIndexHandle *ih, const std::string &filename, const std::vector<ColMeta>& index_cols) {
         std::string ix_name = get_index_name(filename, index_cols);
+        // 删除所有节点的页面
+        buffer_pool_manager_->delete_all_pages(ih->fd_);
         disk_manager_->destroy_file(ix_name);
     }
 
-    void destroy_index(const std::string &filename, const std::vector<std::string>& index_cols) {
+    void destroy_index(const IxIndexHandle *ih, const std::string &filename, const std::vector<std::string>& index_cols) {
         std::string ix_name = get_index_name(filename, index_cols);
+        // 删除所有节点的页面
+        buffer_pool_manager_->delete_all_pages(ih->fd_);
         disk_manager_->destroy_file(ix_name);
     }
 

@@ -288,34 +288,12 @@ void SmManager::drop_table(const std::string& tab_name, Context* context) {
     rm_manager_->close_file(fhs_[tab_name].get());
     rm_manager_->destroy_file(tab_name);
 
-    // 先关闭再删除表中对应的所有索引文件
-    // ！drop_index
-    int idx = -1;
-    int tot_col_len = 0;
+    // 先关闭再删除表中对应的所有索引页面和文件
     for (auto& index : tab.indexes) {
-        tot_col_len = 0;
-        for (auto& col : index.cols) {
-            tot_col_len += col.len;
-        }
         const std::string& index_name = ix_manager_->get_index_name(tab_name, index.cols);
         auto ih = std::move(ihs_.at(index_name));
-        auto fh = fhs_[tab_name].get();
-        // 逆操作，删除b+树上所有的记录，变成空树，同时删除所有页面
-        for (RmScan rmScan(fh); !rmScan.is_end(); rmScan.next()) {
-            auto rec = fh->get_record(rmScan.rid(), context);
-            char* delete_data = new char[tot_col_len + 4];
-            memcpy(delete_data + tot_col_len, &idx, 4);
-            int offset = 0;
-            for (auto& col : index.cols) {
-                memcpy(delete_data + offset, rec->data + col.offset, col.len);
-                offset += col.len;
-            }
-            assert(ih->delete_entry(delete_data, context->txn_));
-            delete[] delete_data;
-        }
-
         ix_manager_->close_index(ih.get());
-        ix_manager_->destroy_index(tab_name, index.cols);
+        ix_manager_->destroy_index(ih.get(), tab_name, index.cols);
         ihs_.erase(index_name);
     }
     // 从数据库元数据中移除表信息
@@ -368,7 +346,7 @@ void SmManager::create_index(const std::string& tab_name, const std::vector<std:
                 delete[] inse_data;
             }
             ix_manager_->close_index(ih.get());
-            ix_manager_->destroy_index(tab_name, col_names);
+            ix_manager_->destroy_index(ih.get(), tab_name, col_names);
             throw InternalError("不满足唯一性约束！");
         }
         insert_datas.emplace_back(insert_data);
@@ -408,32 +386,10 @@ void SmManager::drop_index(const std::string& tab_name, const std::vector<std::s
         throw IndexNotFoundError(tab_name, col_names);
     }
 
-    std::vector<ColMeta> cols;
-    int tot_col_len = 0;
-    for (auto& col_name : col_names) {
-        cols.emplace_back(*tab.get_col(col_name));
-        tot_col_len += cols.back().len;
-    }
-
-    int idx = -1;
     auto ih = std::move(ihs_.at(index_name));
-    auto fh = fhs_[tab_name].get();
-    // 逆操作，删除b+树上所有的记录，变成空树，同时删除所有页面
-    for (RmScan rmScan(fh); !rmScan.is_end(); rmScan.next()) {
-        auto rec = fh->get_record(rmScan.rid(), context);
-        char* delete_data = new char[tot_col_len + 4];
-        memcpy(delete_data + tot_col_len, &idx, 4);
-        int offset = 0;
-        for (auto& col : cols) {
-            memcpy(delete_data + offset, rec->data + col.offset, col.len);
-            offset += col.len;
-        }
-        assert(ih->delete_entry(delete_data, context->txn_));
-        delete[] delete_data;
-    }
     // 先关闭再清除索引文件
     ix_manager_->close_index(ih.get());
-    ix_manager_->destroy_index(tab_name, col_names);
+    ix_manager_->destroy_index(ih.get(), tab_name, col_names);
     // 清除 ihs 中的索引
     ihs_.erase(index_name);
     // 清除表元数据中的索引
@@ -463,32 +419,10 @@ void SmManager::drop_index(const std::string& tab_name, const std::vector<ColMet
         throw IndexNotFoundError(tab_name, cols_name);
     }
 
-    int tot_col_len = 0;
-    for (auto& col : cols) {
-        tot_col_len += col.len;
-    }
-
     auto ih = std::move(ihs_.at(index_name));
-    auto fh = fhs_[tab_name].get();
-    // 逆操作，删除b+树上所有的记录，变成空树，同时删除所有页面
-    // 要保证索引数据与表数据同步
-    int idx = -1;
-    for (RmScan rmScan(fh); !rmScan.is_end(); rmScan.next()) {
-        auto rec = fh->get_record(rmScan.rid(), context);
-        char* delete_data = new char[tot_col_len + 4];
-        memcpy(delete_data + tot_col_len, &idx, 4);
-        int offset = 0;
-        for (auto& col : cols) {
-            memcpy(delete_data + offset, rec->data + col.offset, col.len);
-            offset += col.len;
-        }
-        assert(ih->delete_entry(delete_data, context->txn_));
-        delete[] delete_data;
-    }
-
     // 先关闭再清除索引文件
     ix_manager_->close_index(ih.get());
-    ix_manager_->destroy_index(tab_name, cols);
+    ix_manager_->destroy_index(ih.get(), tab_name, cols);
     // 清除 ihs 中的索引
     ihs_.erase(index_name);
     // 清除表元数据中的索引
