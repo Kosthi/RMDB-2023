@@ -233,7 +233,7 @@ class IxIndexHandle {
 
     bool is_empty() const { return file_hdr_->root_page_ == IX_NO_PAGE; }
 
-    void create_new_root();
+    void create_new_tree(const char *key, const Rid &rid);
 
     void unlock_page_set(Transaction *transaction);
 
