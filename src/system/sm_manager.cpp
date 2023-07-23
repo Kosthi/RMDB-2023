@@ -354,7 +354,8 @@ void SmManager::create_index(const std::string& tab_name, const std::vector<std:
             ix_manager_->destroy_index(ih.get(), tab_name, col_names);
             throw InternalError("Non-Unique Index!");
         }
-        assert(ih->insert_entry(insert_data, rmScan.rid(), context->txn_) > 0);
+        // assert(ih->insert_entry(insert_data, rmScan.rid(), context->txn_) > 0);
+        ih->insert_entry(insert_data, rmScan.rid(), context->txn_);
         delete[] insert_data;
     }
 

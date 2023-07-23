@@ -134,7 +134,7 @@ public:
                     memcpy(old_data + offset, old_record->data + col.offset, col.len);
                     offset += col.len;
                 }
-                assert(ih->delete_entry(old_data, context_->txn_));
+                ih->delete_entry(old_data, context_->txn_);
                 ih->insert_entry(update_data, rids_[i], context_->txn_);
                 RmRecord rm_old(index.col_tot_len + 4, old_data);
                 RmRecord rm_update(index.col_tot_len + 4, update_data);
