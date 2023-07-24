@@ -405,43 +405,22 @@ bool LockManager::unlock(Transaction* txn, LockDataId lock_data_id) {
         txn->set_state(TransactionState::SHRINKING);
     }
 
-    // 找不到锁请求队列
-    if (lock_table_.find(lock_data_id) == lock_table_.end()) {
+    // 3. 如果锁表中还不存在该对象，则直接返回true
+    if(!lock_table_.count(lock_data_id)) {
         return true;
     }
-
-    // 得到锁ID所在的锁请求队列和队列上的所有锁请求
-    auto& lockRequestQueue = lock_table_.at(lock_data_id);
-    auto& lockRequests = lockRequestQueue.request_queue_;
-
-    // 找到当前事务的锁请求并移除
-    auto pos = std::find_if(lockRequests.begin(), lockRequests.end(), [&](const LockRequest& lockRequest) {
-        return lockRequest.txn_id_ == txn->get_transaction_id();
-    });
-    // 找不到当前事务
-    if (pos == lockRequests.end()) return true;
-    if (pos->lock_mode_ == LockMode::SHARED || pos->lock_mode_ == LockMode::S_IX) {
-        --lockRequestQueue.shared_lock_num_;
+    // 4. 获得request queue
+    auto &request_queue = lock_table_[lock_data_id];
+    // 5. 遍历queue并删除该事务的锁请求
+    for(auto req = request_queue.request_queue_.begin(); req != request_queue.request_queue_.end(); req++) {
+        if(req->txn_id_ == txn->get_transaction_id()) {
+            request_queue.request_queue_.erase(req);
+            break;
+        }
     }
-    if (pos->lock_mode_ == LockMode::INTENTION_EXCLUSIVE || pos->lock_mode_ == LockMode::S_IX) {
-        --lockRequestQueue.IX_lock_num_;
-    }
-    lockRequests.erase(pos);
-
-    // 更新锁队列的锁模式
-    if (lockRequests.empty()) {
-        lockRequestQueue.group_lock_mode_ = GroupLockMode::NON_LOCK;
-        return true;
-    }
-
-//    LockMode new_mode = LockMode::INTENTION_SHARED;
-//    for (auto& lockRequest : lockRequests) {
-//        new_mode = static_cast<LockMode>(std::max(static_cast<int>(new_mode), static_cast<int>(lockRequest.lock_mode_)));
-//    }
-//    lockRequestQueue.group_lock_mode_ = static_cast<GroupLockMode>(static_cast<int>(new_mode) + 1);
     // 6. 更新request queue的元信息
     int IS_lock_num = 0, IX_lock_num = 0, S_lock_num = 0, SIX_lock_num = 0, X_lock_num = 0;
-    for(auto const &req : lockRequests) {
+    for(auto const &req : request_queue.request_queue_) {
         switch (req.lock_mode_)
         {
             case LockMode::INTENTION_SHARED: {
@@ -469,17 +448,17 @@ bool LockManager::unlock(Transaction* txn, LockDataId lock_data_id) {
         }
     }
     if(X_lock_num > 0) {
-        lockRequestQueue.group_lock_mode_ = GroupLockMode::X;
+        request_queue.group_lock_mode_ = GroupLockMode::X;
     }else if(SIX_lock_num > 0) {
-        lockRequestQueue.group_lock_mode_ = GroupLockMode::SIX;
+        request_queue.group_lock_mode_ = GroupLockMode::SIX;
     }else if(IX_lock_num > 0) {
-        lockRequestQueue.group_lock_mode_ = GroupLockMode::IX;
+        request_queue.group_lock_mode_ = GroupLockMode::IX;
     }else if(S_lock_num > 0) {
-        lockRequestQueue.group_lock_mode_ = GroupLockMode::S;
+        request_queue.group_lock_mode_ = GroupLockMode::S;
     }else if(IS_lock_num > 0) {
-        lockRequestQueue.group_lock_mode_ = GroupLockMode::IS;
+        request_queue.group_lock_mode_ = GroupLockMode::IS;
     }else {
-        lockRequestQueue.group_lock_mode_ = GroupLockMode::NON_LOCK;
+        request_queue.group_lock_mode_ = GroupLockMode::NON_LOCK;
     }
     return true;
 }
