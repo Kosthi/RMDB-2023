@@ -33,7 +33,6 @@ Transaction * TransactionManager::begin(Transaction* txn, LogManager* log_manage
     }
     std::lock_guard<std::mutex> lock(latch_);
     txn_map.emplace(txn->get_transaction_id(), txn);
-    txn->set_state(TransactionState::GROWING);
     return txn;
 }
 
