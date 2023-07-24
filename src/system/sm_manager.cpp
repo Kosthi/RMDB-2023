@@ -268,7 +268,9 @@ void SmManager::create_table(const std::string& tab_name, const std::vector<ColD
     fhs_.emplace(tab_name, rm_manager_->open_file(tab_name));
 
     // 申请表级写锁
-    context->lock_mgr_->lock_exclusive_on_table(context->txn_, fhs_[tab_name]->GetFd());
+    if (context) {
+        context->lock_mgr_->lock_exclusive_on_table(context->txn_, fhs_[tab_name]->GetFd());
+    }
 
     flush_meta();
 }
@@ -285,7 +287,9 @@ void SmManager::drop_table(const std::string& tab_name, Context* context) {
     }
 
     // 申请表级写锁
-    context->lock_mgr_->lock_exclusive_on_table(context->txn_, fhs_[tab_name]->GetFd());
+    if (context) {
+        context->lock_mgr_->lock_exclusive_on_table(context->txn_, fhs_[tab_name]->GetFd());
+    }
 
     // 先获取表元数据
     TabMeta& tab = db_.get_table(tab_name);
@@ -324,7 +328,9 @@ void SmManager::create_index(const std::string& tab_name, const std::vector<std:
     }
 
     // 建立索引要读表上的所有记录，所以申请表级读锁
-    context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
+    if (context) {
+        context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
+    }
 
     std::vector<ColMeta> cols;
     int tot_col_len = 0;
@@ -387,7 +393,9 @@ void SmManager::drop_index(const std::string& tab_name, const std::vector<std::s
     }
 
     // 删除索引要读表上的所有记录，所以申请表级读锁
-    context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
+    if (context) {
+        context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
+    }
 
     auto ih = std::move(ihs_.at(index_name));
     // 先关闭再清除索引文件
@@ -423,7 +431,9 @@ void SmManager::drop_index(const std::string& tab_name, const std::vector<ColMet
     }
 
     // 删除索引要读表上的所有记录，所以申请表级读锁
-    context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
+    if (context) {
+        context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
+    }
 
     auto ih = std::move(ihs_.at(index_name));
     // 先关闭再清除索引文件
