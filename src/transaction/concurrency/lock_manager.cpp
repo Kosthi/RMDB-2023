@@ -75,7 +75,7 @@ bool LockManager::lock_shared_on_record(Transaction* txn, const Rid& rid, int ta
     lockRequestQueue.group_lock_mode_ = GroupLockMode::S;
     // 添加当前事务的锁请求到队列中
     lockRequestQueue.request_queue_.emplace_back(txn->get_transaction_id(), LockMode::SHARED);
-    // ++lockRequestQueue.shared_lock_num_;
+    ++lockRequestQueue.shared_lock_num_;
     // 成功申请共享锁
     lockRequestQueue.request_queue_.back().granted_ = true;
     txn->get_lock_set()->emplace(lockDataId);
@@ -191,29 +191,29 @@ bool LockManager::lock_shared_on_table(Transaction* txn, int tab_fd) {
                 pos->lock_mode_ == LockMode::S_IX) {
                 return true;
             }
-                // 事务有IS锁，升级S需要其他事务不持有X锁
+            // 事务有IS锁，升级S需要其他事务不持有X锁
             else if (pos->lock_mode_ == LockMode::INTENTION_SHARED && (
                     lockRequestQueue.group_lock_mode_ == GroupLockMode::S ||
                     lockRequestQueue.group_lock_mode_ == GroupLockMode::IS)) {
                 pos->lock_mode_ = LockMode::SHARED;
                 lockRequestQueue.group_lock_mode_ = GroupLockMode::S;
-                // ++lockRequestQueue.shared_lock_num_;
+                ++lockRequestQueue.shared_lock_num_;
                 return true;
             }
-                // 如果事务有IX锁，申请SIX需要其他事务不持有IX锁
-            else if (pos->lock_mode_ == LockMode::INTENTION_EXCLUSIVE) {
-                int ix_num = 0;
-                for (auto &lockRequest: lockRequests) {
-                    if (lockRequest.lock_mode_ == LockMode::INTENTION_EXCLUSIVE) {
-                        ++ix_num;
-                    }
-                }
-                if (ix_num == 1) {
+            // 如果事务有IX锁，申请SIX需要其他事务不持有IX锁
+            else if (pos->lock_mode_ == LockMode::INTENTION_EXCLUSIVE && lockRequestQueue.IX_lock_num_ == 1) {
+//                int ix_num = 0;
+//                for (auto &lockRequest: lockRequests) {
+//                    if (lockRequest.lock_mode_ == LockMode::INTENTION_EXCLUSIVE) {
+//                        ++ix_num;
+//                    }
+//                }
+//                if (ix_num == 1) {
                     pos->lock_mode_ = LockMode::S_IX;
                     lockRequestQueue.group_lock_mode_ = GroupLockMode::SIX;
-                    // ++lockRequestQueue.shared_lock_num_;
+                    ++lockRequestQueue.shared_lock_num_;
                     return true;
-                }
+                // }
             }
             throw TransactionAbortException(txn->get_transaction_id(), AbortReason::DEADLOCK_PREVENTION);
         }
@@ -271,7 +271,7 @@ bool LockManager::lock_shared_on_table(Transaction* txn, int tab_fd) {
     lockRequestQueue.group_lock_mode_ = GroupLockMode::S;
     // 添加当前事务的锁请求到队列中
     lockRequestQueue.request_queue_.emplace_back(txn->get_transaction_id(), LockMode::SHARED);
-    // ++lockRequestQueue.shared_lock_num_;
+    ++lockRequestQueue.shared_lock_num_;
     // 成功申请共享锁
     lockRequestQueue.request_queue_.back().granted_ = true;
     txn->get_lock_set()->emplace(lockDataId);
@@ -306,7 +306,7 @@ bool LockManager::lock_exclusive_on_table(Transaction* txn, int tab_fd) {
             if (pos->lock_mode_ == LockMode::EXCLUSIVE) {
                 return true;
             }
-                // 只允许存在一个事务才能升级表写锁
+            // 只允许存在一个事务才能升级表写锁
             else if (lockRequests.size() == 1) {
                 pos->lock_mode_ = LockMode::EXCLUSIVE;
                 lockRequestQueue.group_lock_mode_ = GroupLockMode::X;
@@ -436,26 +436,26 @@ bool LockManager::lock_IX_on_table(Transaction* txn, int tab_fd) {
                 pos->lock_mode_ == LockMode::EXCLUSIVE) {
                 return true;
             }
-                // 如果事务有且持有唯一共享锁(where)，则升级为SIX
-                // 否则有多个事务持有共享锁，无法为其中的一个事务申请写锁，因为可能会影响其他事务读出来修改后的数据
-            else if (pos->lock_mode_ == LockMode::SHARED) {
-                int s_num = 0;
-                for (auto& lockRequest : lockRequests) {
-                    if (lockRequest.lock_mode_ == LockMode::SHARED) {
-                        ++s_num;
-                    }
-                }
-                if (s_num == 1) {
-                    // ++lockRequestQueue.IX_lock_num_;
+            // 如果事务有且持有唯一共享锁(where)，则升级为SIX
+            // 否则有多个事务持有共享锁，无法为其中的一个事务申请写锁，因为可能会影响其他事务读出来修改后的数据
+            else if (pos->lock_mode_ == LockMode::SHARED && lockRequestQueue.shared_lock_num_ == 1) {
+//                int s_num = 0;
+//                for (auto& lockRequest : lockRequests) {
+//                    if (lockRequest.lock_mode_ == LockMode::SHARED) {
+//                        ++s_num;
+//                    }
+//                }
+                //if (s_num == 1) {
+                    ++lockRequestQueue.IX_lock_num_;
                     pos->lock_mode_ = LockMode::S_IX;
                     lockRequestQueue.group_lock_mode_ = GroupLockMode::SIX;
                     return true;
-                }
+                //}
             }
             else if (pos->lock_mode_ == LockMode::INTENTION_SHARED && (
                     lockRequestQueue.group_lock_mode_ == GroupLockMode::IS ||
                     lockRequestQueue.group_lock_mode_ == GroupLockMode::IX)) {
-                // ++lockRequestQueue.IX_lock_num_;
+                ++lockRequestQueue.IX_lock_num_;
                 pos->lock_mode_ = LockMode::INTENTION_EXCLUSIVE;
                 lockRequestQueue.group_lock_mode_ = GroupLockMode::IX;
                 return true;
@@ -516,7 +516,7 @@ bool LockManager::lock_IX_on_table(Transaction* txn, int tab_fd) {
     lockRequestQueue.group_lock_mode_ = GroupLockMode::IX;
     // 添加当前事务的锁请求到队列中
     lockRequestQueue.request_queue_.emplace_back(txn->get_transaction_id(), LockMode::INTENTION_EXCLUSIVE);
-    // ++lockRequestQueue.IX_lock_num_;
+    ++lockRequestQueue.IX_lock_num_;
     // 成功申请意向排他锁
     lockRequestQueue.request_queue_.back().granted_ = true;
     txn->get_lock_set()->emplace(lockDataId);
@@ -557,6 +557,12 @@ bool LockManager::unlock(Transaction* txn, LockDataId lock_data_id) {
 
     for (auto it = lockRequests.begin(); it != lockRequests.end(); ++it) {
         if (it->txn_id_ == txn->get_transaction_id()) {
+            if (it->lock_mode_ == LockMode::SHARED || it->lock_mode_ == LockMode::S_IX) {
+                --lockRequestQueue.shared_lock_num_;
+            }
+            if (it->lock_mode_ == LockMode::INTENTION_EXCLUSIVE || it->lock_mode_ == LockMode::S_IX) {
+                --lockRequestQueue.IX_lock_num_;
+            }
             lockRequests.erase(it);
             break;
         }
