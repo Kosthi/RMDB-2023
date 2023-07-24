@@ -53,15 +53,13 @@ void TransactionManager::commit(Transaction* txn, LogManager* log_manager) {
     std::scoped_lock lock(latch_);
 
     // 释放所有锁
-    for (auto& lock : *txn->get_lock_set()) {
-        lock_manager_->unlock(txn, lock);
+    for (auto& lockId : *txn->get_lock_set()) {
+        lock_manager_->unlock(txn, lockId);
     }
 
     // 释放事务相关资源，eg.锁集
     txn->get_write_set()->clear();
     txn->get_lock_set()->clear();
-    txn->get_index_latch_page_set()->clear();
-    txn->get_index_deleted_page_set()->clear();
     // 把事务日志刷入磁盘中
     log_manager->flush_log_to_disk();
     // 设置事务状态为已提交
@@ -95,16 +93,16 @@ void TransactionManager::abort(Transaction * txn, LogManager *log_manager) {
             switch (write_record->GetWriteType()) {
                 case WType::INSERT_TUPLE: {
                     fh->delete_record(write_record->GetRid(), &context);
-                }
                     break;
+                }
                 case WType::DELETE_TUPLE: {
-                    fh->insert_record(write_record->GetRid(), write_record->GetRecord().data);
-                }
+                    fh->insert_record(write_record->GetRid(), write_record->GetRecord().data, &context);
                     break;
+                }
                 case WType::UPDATE_TUPLE: {
                     fh->update_record(write_record->GetRid(), write_record->GetRecord().data, &context);
-                }
                     break;
+                }
                 default:
                     throw InternalError("Unsupported write type");
                     break;
@@ -117,17 +115,17 @@ void TransactionManager::abort(Transaction * txn, LogManager *log_manager) {
             switch (write_record->GetWriteType()) {
                 case WType::INSERT_TUPLE: {
                     ih->delete_entry(write_record->GetRecord().data, txn);
-                }
                     break;
+                }
                 case WType::DELETE_TUPLE: {
                     ih->insert_entry(write_record->GetRecord().data, write_record->GetRid(), txn);
-                }
                     break;
+                }
                 case WType::UPDATE_TUPLE: {
                     ih->delete_entry(write_record->GetUpdatedRecord().data, txn);
                     ih->insert_entry(write_record->GetOldRecord().data, write_record->GetRid(), txn);
-                }
                     break;
+                }
                 default:
                     throw InternalError("Unsupported write type");
                     break;
@@ -137,15 +135,13 @@ void TransactionManager::abort(Transaction * txn, LogManager *log_manager) {
     }
 
     // 释放所有锁
-    for (auto& lock : *txn->get_lock_set()) {
-        lock_manager_->unlock(txn, lock);
+    for (auto& lockId : *txn->get_lock_set()) {
+        lock_manager_->unlock(txn, lockId);
     }
 
     // 释放事务相关资源，eg.锁集
     txn->get_write_set()->clear();
     txn->get_lock_set()->clear();
-    txn->get_index_latch_page_set()->clear();
-    txn->get_index_deleted_page_set()->clear();
     // 把事务日志刷入磁盘中
     log_manager->flush_log_to_disk();
     // 设置事务状态为已终止/回滚

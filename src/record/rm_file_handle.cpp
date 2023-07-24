@@ -75,7 +75,8 @@ Rid RmFileHandle::insert_record(char* buf, Context* context) {
  * @param {Rid&} rid 要插入记录的位置
  * @param {char*} buf 要插入记录的数据
  */
-void RmFileHandle::insert_record(const Rid& rid, char* buf) {
+void RmFileHandle::insert_record(const Rid& rid, char* buf, Context* context) {
+    context->lock_mgr_->lock_exclusive_on_record(context->txn_, rid, fd_);
     auto pageHandle = fetch_page_handle(rid.page_no);
     char* slot = pageHandle.get_slot(rid.slot_no);
     memcpy(slot, buf, file_hdr_.record_size);
@@ -153,7 +154,7 @@ RmPageHandle RmFileHandle::fetch_page_handle(int page_no) const {
     if (page == nullptr) {
         throw PageNotExistError(std::to_string(fd_), page_no);
     }
-    return RmPageHandle(&file_hdr_, page);
+    return {&file_hdr_, page};
 }
 
 /**
@@ -179,7 +180,7 @@ RmPageHandle RmFileHandle::create_new_page_handle() {
         Bitmap::init(pageHandle.bitmap, file_hdr_.num_records_per_page);
         return pageHandle;
     }
-    return RmPageHandle(&file_hdr_, nullptr);
+    return {&file_hdr_, nullptr};
 }
 
 /**
