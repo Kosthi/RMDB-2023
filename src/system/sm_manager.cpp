@@ -163,7 +163,7 @@ void SmManager::close_db() {
 
 /**
  * @description: 显示所有的表,通过测试需要将其结果写入到output.txt,详情看题目文档
- * @param {Context*} context 
+ * @param {Context*} context
  */
 void SmManager::show_tables(Context* context) {
     std::fstream outfile;
@@ -216,7 +216,7 @@ void SmManager::show_index(const std::string& tab_name, Context* context) {
 /**
  * @description: 显示表的元数据
  * @param {string&} tab_name 表名称
- * @param {Context*} context 
+ * @param {Context*} context
  */
 void SmManager::desc_table(const std::string& tab_name, Context* context) {
     TabMeta &tab = db_.get_table(tab_name);
@@ -240,7 +240,7 @@ void SmManager::desc_table(const std::string& tab_name, Context* context) {
  * @description: 创建表
  * @param {string&} tab_name 表的名称
  * @param {vector<ColDef>&} col_defs 表的字段
- * @param {Context*} context 
+ * @param {Context*} context
  */
 void SmManager::create_table(const std::string& tab_name, const std::vector<ColDef>& col_defs, Context* context) {
     if (db_.is_table(tab_name)) {
@@ -252,11 +252,11 @@ void SmManager::create_table(const std::string& tab_name, const std::vector<ColD
     tab.name = tab_name;
     for (auto &col_def : col_defs) {
         ColMeta col = {.tab_name = tab_name,
-                       .name = col_def.name,
-                       .type = col_def.type,
-                       .len = col_def.len,
-                       .offset = curr_offset,
-                       .index = false};
+                .name = col_def.name,
+                .type = col_def.type,
+                .len = col_def.len,
+                .offset = curr_offset,
+                .index = false};
         curr_offset += col_def.len;
         tab.cols.push_back(col);
     }
@@ -266,6 +266,9 @@ void SmManager::create_table(const std::string& tab_name, const std::vector<ColD
     db_.tabs_[tab_name] = tab;
     // fhs_[tab_name] = rm_manager_->open_file(tab_name);
     fhs_.emplace(tab_name, rm_manager_->open_file(tab_name));
+
+    // 申请表级写锁
+    context->lock_mgr_->lock_exclusive_on_table(context->txn_, fhs_[tab_name]->GetFd());
 
     flush_meta();
 }
@@ -280,6 +283,9 @@ void SmManager::drop_table(const std::string& tab_name, Context* context) {
     if (!db_.is_table(tab_name)) {
         throw TableNotFoundError(tab_name);
     }
+
+    // 申请表级写锁
+    context->lock_mgr_->lock_exclusive_on_table(context->txn_, fhs_[tab_name]->GetFd());
 
     // 先获取表元数据
     TabMeta& tab = db_.get_table(tab_name);
@@ -316,6 +322,10 @@ void SmManager::create_index(const std::string& tab_name, const std::vector<std:
     if (tab.is_index(col_names)) {
         throw IndexExistsError(tab_name, col_names);
     }
+
+    // 建立索引要读表上的所有记录，所以申请表级读锁
+    context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
+
     std::vector<ColMeta> cols;
     int tot_col_len = 0;
     for (auto& col_name : col_names) {
@@ -329,7 +339,6 @@ void SmManager::create_index(const std::string& tab_name, const std::vector<std:
     ix_manager_->create_index(tab_name, cols);
     auto ih = ix_manager_->open_index(tab_name, cols);
     int idx = -1;
-    std::vector<char*> insert_datas;
     for (RmScan rmScan(fh); !rmScan.is_end(); rmScan.next()) {
         auto rec = fh->get_record(rmScan.rid(), context);
         char* insert_data = new char[tot_col_len + 4];
@@ -341,20 +350,11 @@ void SmManager::create_index(const std::string& tab_name, const std::vector<std:
         }
         std::vector<Rid> rid;
         if (ih->get_value(insert_data, &rid, context->txn_)) {
-            for (auto& inse_data : insert_datas) {
-                assert(ih->delete_entry(inse_data, context->txn_));
-                delete[] inse_data;
-            }
             ix_manager_->close_index(ih.get());
             ix_manager_->destroy_index(ih.get(), tab_name, col_names);
             throw InternalError("不满足唯一性约束！");
         }
-        insert_datas.emplace_back(insert_data);
         assert(ih->insert_entry(insert_data, rmScan.rid(), context->txn_) > 0);
-    }
-
-    for (auto& insert_data : insert_datas) {
-        delete[] insert_data;
     }
 
     auto index_name = ix_manager_->get_index_name(tab_name, col_names);
@@ -385,6 +385,9 @@ void SmManager::drop_index(const std::string& tab_name, const std::vector<std::s
     if (ihs_.count(index_name) == 0) {
         throw IndexNotFoundError(tab_name, col_names);
     }
+
+    // 删除索引要读表上的所有记录，所以申请表级读锁
+    context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
 
     auto ih = std::move(ihs_.at(index_name));
     // 先关闭再清除索引文件
@@ -418,6 +421,9 @@ void SmManager::drop_index(const std::string& tab_name, const std::vector<ColMet
     if (ihs_.count(index_name) == 0) {
         throw IndexNotFoundError(tab_name, cols_name);
     }
+
+    // 删除索引要读表上的所有记录，所以申请表级读锁
+    context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
 
     auto ih = std::move(ihs_.at(index_name));
     // 先关闭再清除索引文件
