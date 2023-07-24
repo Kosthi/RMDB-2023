@@ -439,10 +439,52 @@ bool LockManager::unlock(Transaction* txn, LockDataId lock_data_id) {
         return true;
     }
 
-    GroupLockMode new_mode = GroupLockMode::NON_LOCK;
-    for (auto& lockRequest : lockRequests) {
-        new_mode = static_cast<GroupLockMode>(std::max(static_cast<int>(new_mode), static_cast<int>(lockRequest.lock_mode_)));
+//    LockMode new_mode = LockMode::INTENTION_SHARED;
+//    for (auto& lockRequest : lockRequests) {
+//        new_mode = static_cast<LockMode>(std::max(static_cast<int>(new_mode), static_cast<int>(lockRequest.lock_mode_)));
+//    }
+//    lockRequestQueue.group_lock_mode_ = static_cast<GroupLockMode>(static_cast<int>(new_mode) + 1);
+    // 6. 更新request queue的元信息
+    int IS_lock_num = 0, IX_lock_num = 0, S_lock_num = 0, SIX_lock_num = 0, X_lock_num = 0;
+    for(auto const &req : lockRequests) {
+        switch (req.lock_mode_)
+        {
+            case LockMode::INTENTION_SHARED: {
+                IS_lock_num++;
+                break;
+            }
+            case LockMode::INTENTION_EXCLUSIVE: {
+                IX_lock_num++;
+                break;
+            }
+            case LockMode::SHARED: {
+                S_lock_num++;
+                break;
+            }
+            case LockMode::EXCLUSIVE: {
+                X_lock_num++;
+                break;
+            }
+            case LockMode::S_IX: {
+                SIX_lock_num++;
+                break;
+            }
+            default:
+                break;
+        }
     }
-    lockRequestQueue.group_lock_mode_ = new_mode;
+    if(X_lock_num > 0) {
+        lockRequestQueue.group_lock_mode_ = GroupLockMode::X;
+    }else if(SIX_lock_num > 0) {
+        lockRequestQueue.group_lock_mode_ = GroupLockMode::SIX;
+    }else if(IX_lock_num > 0) {
+        lockRequestQueue.group_lock_mode_ = GroupLockMode::IX;
+    }else if(S_lock_num > 0) {
+        lockRequestQueue.group_lock_mode_ = GroupLockMode::S;
+    }else if(IS_lock_num > 0) {
+        lockRequestQueue.group_lock_mode_ = GroupLockMode::IS;
+    }else {
+        lockRequestQueue.group_lock_mode_ = GroupLockMode::NON_LOCK;
+    }
     return true;
 }
