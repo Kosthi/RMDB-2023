@@ -131,19 +131,19 @@ bool LockManager::lock_exclusive_on_record(Transaction* txn, const Rid& rid, int
         lock_table_.emplace(std::piecewise_construct, std::forward_as_tuple(lock_data_id), std::forward_as_tuple());
     }
     // 5. 构造lock request
-    LockRequest request(txn->get_transaction_id(), LockMode::EXLUCSIVE);
+    LockRequest request(txn->get_transaction_id(), LockMode::EXCLUSIVE);
     auto &request_queue = lock_table_[lock_data_id];
 
     // 6. 查看是否该事务已经持有对应的锁
     for(auto &req : request_queue.request_queue_) {
         if(req.txn_id_ == txn->get_transaction_id()) {
-            if(req.lock_mode_ == LockMode::EXLUCSIVE) {
+            if(req.lock_mode_ == LockMode::EXCLUSIVE) {
                 // 6.1 该事务已经持有X锁
                 return true;
             }else {
                 // 6.2 该事务持有了S锁，需要升级为X锁，只有当请求列表中没有其他事务持有锁才能成功
                 if(request_queue.group_lock_mode_ == GroupLockMode::S && request_queue.request_queue_.size() == 1) {
-                    req.lock_mode_ = LockMode::EXLUCSIVE;
+                    req.lock_mode_ = LockMode::EXCLUSIVE;
                     request_queue.group_lock_mode_ = GroupLockMode::X;
                     return true;
                 }else {
@@ -190,7 +190,7 @@ bool LockManager::lock_shared_on_table(Transaction* txn, int tab_fd) {
     // 6. 查看是否该事务已经持有对应的锁
     for(auto &req : request_queue.request_queue_) {
         if(req.txn_id_ == txn->get_transaction_id()) {
-            if(req.lock_mode_ == LockMode::EXLUCSIVE || req.lock_mode_ == LockMode::S_IX || req.lock_mode_ == LockMode::SHARED) {
+            if(req.lock_mode_ == LockMode::EXCLUSIVE || req.lock_mode_ == LockMode::S_IX || req.lock_mode_ == LockMode::SHARED) {
                 // 6.1 该事务已经持有S锁或者更高级的锁，例如X,S_IX,S
                 return true;
             }else if(req.lock_mode_ == LockMode::INTENTION_SHARED){
@@ -259,18 +259,18 @@ bool LockManager::lock_exclusive_on_table(Transaction* txn, int tab_fd) {
         lock_table_.emplace(std::piecewise_construct, std::forward_as_tuple(lock_data_id), std::forward_as_tuple());
     }
     // 5. 构造lock request
-    LockRequest request(txn->get_transaction_id(), LockMode::EXLUCSIVE);
+    LockRequest request(txn->get_transaction_id(), LockMode::EXCLUSIVE);
     auto &request_queue = lock_table_[lock_data_id];
     // 6. 查看是否该事务已经持有对应的锁
     for(auto &req : request_queue.request_queue_) {
         if(req.txn_id_ == txn->get_transaction_id()) {
-            if(req.lock_mode_ == LockMode::EXLUCSIVE) {
+            if(req.lock_mode_ == LockMode::EXCLUSIVE) {
                 // 6.1 该事务已经持有X锁
                 return true;
             }else {
                 // 6.2 该事务持有了某种锁，需要升级为X锁，升级条件为当前仅有该事务持有锁
                 if(request_queue.request_queue_.size() == 1) {
-                    req.lock_mode_ = LockMode::EXLUCSIVE;
+                    req.lock_mode_ = LockMode::EXCLUSIVE;
                     request_queue.group_lock_mode_ = GroupLockMode::X;
                     return true;
                 }else {
@@ -363,7 +363,7 @@ bool LockManager::lock_IX_on_table(Transaction* txn, int tab_fd) {
     // 6. 查看是否该事务已经持有对应的锁
     for(auto &req : request_queue.request_queue_) {
         if(req.txn_id_ == txn->get_transaction_id()) {
-            if(req.lock_mode_ == LockMode::INTENTION_EXCLUSIVE || req.lock_mode_ == LockMode::S_IX || req.lock_mode_ == LockMode::EXLUCSIVE) {
+            if(req.lock_mode_ == LockMode::INTENTION_EXCLUSIVE || req.lock_mode_ == LockMode::S_IX || req.lock_mode_ == LockMode::EXCLUSIVE) {
                 // 6.1 该事务已经持有IX锁或者更高级的锁
                 return true;
             }else if (req.lock_mode_ == LockMode::SHARED){
@@ -433,47 +433,59 @@ bool LockManager::unlock(Transaction* txn, LockDataId lock_data_id) {
             break;
         }
     }
-    // 6. 更新request queue的元信息
-    int IS_lock_num = 0, IX_lock_num = 0, S_lock_num = 0, SIX_lock_num = 0, X_lock_num = 0;
-    for(auto const &req : request_queue.request_queue_) {
-        switch (req.lock_mode_)
-        {
-            case LockMode::INTENTION_SHARED: {
-                IS_lock_num++;
-                break;
-            }
-            case LockMode::INTENTION_EXCLUSIVE: {
-                IX_lock_num++;
-                break;
-            }
-            case LockMode::SHARED: {
-                S_lock_num++;
-                break;
-            }
-            case LockMode::EXLUCSIVE: {
-                X_lock_num++;
-                break;
-            }
-            case LockMode::S_IX: {
-                SIX_lock_num++;
-                break;
-            }
-            default:
-                break;
-        }
-    }
-    if(X_lock_num > 0) {
-        request_queue.group_lock_mode_ = GroupLockMode::X;
-    }else if(SIX_lock_num > 0) {
-        request_queue.group_lock_mode_ = GroupLockMode::SIX;
-    }else if(IX_lock_num > 0) {
-        request_queue.group_lock_mode_ = GroupLockMode::IX;
-    }else if(S_lock_num > 0) {
-        request_queue.group_lock_mode_ = GroupLockMode::S;
-    }else if(IS_lock_num > 0) {
-        request_queue.group_lock_mode_ = GroupLockMode::IS;
-    }else {
+    
+    if (request_queue.request_queue_.empty()) {
         request_queue.group_lock_mode_ = GroupLockMode::NON_LOCK;
+        return true;
     }
+    
+    LockMode new_mode = LockMode::INTENTION_SHARED;
+    for (auto& lockRequest : request_queue.request_queue_) {
+        new_mode = static_cast<LockMode>(std::max(static_cast<int>(new_mode), static_cast<int>(lockRequest.lock_mode_)));
+    }
+    request_queue.group_lock_mode_ = static_cast<GroupLockMode>(static_cast<int>(new_mode) + 1);
+    
+    // 6. 更新request queue的元信息
+//    int IS_lock_num = 0, IX_lock_num = 0, S_lock_num = 0, SIX_lock_num = 0, X_lock_num = 0;
+//    for(auto const &req : request_queue.request_queue_) {
+//        switch (req.lock_mode_)
+//        {
+//            case LockMode::INTENTION_SHARED: {
+//                IS_lock_num++;
+//                break;
+//            }
+//            case LockMode::INTENTION_EXCLUSIVE: {
+//                IX_lock_num++;
+//                break;
+//            }
+//            case LockMode::SHARED: {
+//                S_lock_num++;
+//                break;
+//            }
+//            case LockMode::EXCLUSIVE: {
+//                X_lock_num++;
+//                break;
+//            }
+//            case LockMode::S_IX: {
+//                SIX_lock_num++;
+//                break;
+//            }
+//            default:
+//                break;
+//        }
+//    }
+//    if(X_lock_num > 0) {
+//        request_queue.group_lock_mode_ = GroupLockMode::X;
+//    }else if(SIX_lock_num > 0) {
+//        request_queue.group_lock_mode_ = GroupLockMode::SIX;
+//    }else if(IX_lock_num > 0) {
+//        request_queue.group_lock_mode_ = GroupLockMode::IX;
+//    }else if(S_lock_num > 0) {
+//        request_queue.group_lock_mode_ = GroupLockMode::S;
+//    }else if(IS_lock_num > 0) {
+//        request_queue.group_lock_mode_ = GroupLockMode::IS;
+//    }else {
+//        request_queue.group_lock_mode_ = GroupLockMode::NON_LOCK;
+//    }
     return true;
 }
