@@ -34,9 +34,17 @@ public:
     void analyze();
     void redo();
     void undo();
+    void redo_index(); // 暂时采取删除掉索引文件按照恢复好的记录重建索引的方案
 private:
     LogBuffer buffer_;                                              // 读入日志
     DiskManager* disk_manager_;                                     // 用来读写文件
     BufferPoolManager* buffer_pool_manager_;                        // 对页面进行读写
     SmManager* sm_manager_;                                         // 访问数据库元数据
+
+    /** Maintain active transactions and its corresponding latest lsn. */
+    std::unordered_map<txn_id_t, lsn_t> active_txn_;
+    /** Mapping the log sequence number to log file offset for undos. */
+    std::unordered_map<lsn_t, int> lsn_mapping_;
+    /** DPT for redo. */
+    std::vector<lsn_t> dirty_page_table_;
 };

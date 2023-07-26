@@ -11,7 +11,6 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "defs.h"
-#include "storage/buffer_pool_manager.h"
 
 constexpr int RM_NO_PAGE = -1;
 constexpr int RM_FILE_HDR_PAGE = 0;
@@ -73,17 +72,30 @@ struct RmRecord {
         memcpy(data, data_, size);
     }
 
+    // for insert & delete log
     void Deserialize(const char* data_) {
         size = *reinterpret_cast<const int*>(data_);
-        if(allocated_) {
+        if (allocated_) {
             delete[] data;
         }
         data = new char[size];
         memcpy(data, data_ + sizeof(int), size);
+        allocated_ = true;
+    }
+
+    // for update log
+    void Deserialize(const char* data_, const int offset) {
+        size = *reinterpret_cast<const int*>(data_);
+        if (allocated_) {
+            delete[] data;
+        }
+        data = new char[size];
+        memcpy(data, data_ + offset, size);
+        allocated_ = true;
     }
 
     ~RmRecord() {
-        if(allocated_) {
+        if (allocated_) {
             delete[] data;
         }
         allocated_ = false;
