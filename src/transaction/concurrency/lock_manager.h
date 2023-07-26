@@ -11,6 +11,8 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include <mutex>
+#include <list>
+#include <unordered_map>
 #include <condition_variable>
 #include "transaction/transaction.h"
 

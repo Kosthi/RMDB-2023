@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/config.h"
 #include "defs.h"
 #include "record/rm_defs.h"
+#include "storage/page.h"
 
 /* 标识事务状态 */
 enum class TransactionState { DEFAULT, GROWING, SHRINKING, COMMITTED, ABORTED };
@@ -44,7 +45,7 @@ class WriteRecord {
     WriteRecord(WType wtype, const std::string &tab_name, const Rid &rid)
         : wtype_(wtype), tab_name_(tab_name), rid_(rid) {}
 
-    // constructor for delete & update operation
+    // constructor for delete & update & insert in log operation
     WriteRecord(WType wtype, const std::string &tab_name, const Rid &rid, const RmRecord &record)
         : wtype_(wtype), tab_name_(tab_name), rid_(rid), record_(record) {}
 
