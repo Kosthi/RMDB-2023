@@ -34,6 +34,11 @@ Transaction * TransactionManager::begin(Transaction* txn, LogManager* log_manage
         txn->set_start_ts(next_timestamp_++);
     }
     txn_map.emplace(txn->get_transaction_id(), txn);
+
+    BeginLogRecord beginLogRecord(txn->get_transaction_id());
+    beginLogRecord.prev_lsn_ = txn->get_prev_lsn();
+    txn->set_prev_lsn(log_manager->add_log_to_buffer(&beginLogRecord));
+
     return txn;
 }
 
@@ -61,6 +66,9 @@ void TransactionManager::commit(Transaction* txn, LogManager* log_manager) {
     txn->get_write_set()->clear();
     txn->get_lock_set()->clear();
     // 把事务日志刷入磁盘中
+    CommitLogRecord commitLogRecord(txn->get_transaction_id());
+    commitLogRecord.prev_lsn_ = txn->get_prev_lsn();
+    txn->set_prev_lsn(log_manager->add_log_to_buffer(&commitLogRecord));
     log_manager->flush_log_to_disk();
     // 设置事务状态为已提交
     txn->set_state(TransactionState::COMMITTED);
@@ -92,14 +100,31 @@ void TransactionManager::abort(Transaction * txn, LogManager *log_manager) {
             auto fh = sm_manager_->fhs_.at(write_record->GetTableName()).get();
             switch (write_record->GetWriteType()) {
                 case WType::INSERT_TUPLE: {
+                    DeleteLogRecord deleteLogRecord(txn->get_transaction_id(), write_record->GetRecord(), write_record->GetRid(), write_record->GetTableName());
+                    deleteLogRecord.prev_lsn_ = txn->get_prev_lsn();
+                    txn->set_prev_lsn(log_manager->add_log_to_buffer(&deleteLogRecord));
+                    sm_manager_->get_bpm()->update_page_lsn(fh->GetFd(), write_record->GetRid().page_no, txn->get_prev_lsn());
+
                     fh->delete_record(write_record->GetRid(), &context);
                     break;
                 }
                 case WType::DELETE_TUPLE: {
+                    InsertLogRecord insertLogRecord(txn->get_transaction_id(), write_record->GetRecord(), write_record->GetRid(), write_record->GetTableName());
+                    insertLogRecord.prev_lsn_ = txn->get_prev_lsn();
+                    txn->set_prev_lsn(log_manager->add_log_to_buffer(&insertLogRecord));
+                    sm_manager_->get_bpm()->update_page_lsn(fh->GetFd(), write_record->GetRid().page_no, txn->get_prev_lsn());
+
                     fh->insert_record(write_record->GetRid(), write_record->GetRecord().data, &context);
                     break;
                 }
                 case WType::UPDATE_TUPLE: {
+                    // 得到更新记录
+                    auto update_rec = fh->get_record(write_record->GetRid(), &context);
+                    UpdateLogRecord updateLogRecord(txn->get_transaction_id(), write_record->GetRecord(), *update_rec, write_record->GetRid(), write_record->GetTableName());
+                    updateLogRecord.prev_lsn_ = txn->get_prev_lsn();
+                    txn->set_prev_lsn(log_manager->add_log_to_buffer(&updateLogRecord));
+                    sm_manager_->get_bpm()->update_page_lsn(fh->GetFd(), write_record->GetRid().page_no, txn->get_prev_lsn());
+
                     fh->update_record(write_record->GetRid(), write_record->GetRecord().data, &context);
                     break;
                 }
@@ -143,6 +168,9 @@ void TransactionManager::abort(Transaction * txn, LogManager *log_manager) {
     txn->get_write_set()->clear();
     txn->get_lock_set()->clear();
     // 把事务日志刷入磁盘中
+    AbortLogRecord abortLogRecord(txn->get_transaction_id());
+    abortLogRecord.prev_lsn_ = txn->get_prev_lsn();
+    txn->set_prev_lsn(log_manager->add_log_to_buffer(&abortLogRecord));
     log_manager->flush_log_to_disk();
     // 设置事务状态为已终止/回滚
     txn->set_state(TransactionState::ABORTED);
