@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "bitmap.h"
 #include "common/context.h"
 #include "rm_defs.h"
+#include "storage/buffer_pool_manager.h"
 
 class RmManager;
 
@@ -81,12 +82,12 @@ class RmFileHandle {
 
     void update_record(const Rid &rid, char *buf, Context *context);
 
-    RmPageHandle create_new_page_handle();
+    RmPageHandle create_new_page_handle(Context* context);
 
     RmPageHandle fetch_page_handle(int page_no) const;
 
    private:
-    RmPageHandle create_page_handle();
+    RmPageHandle create_page_handle(Context* context);
 
     void release_page_handle(RmPageHandle &page_handle);
 };
