@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "page.h"
 #include "replacer/lru_replacer.h"
 #include "replacer/replacer.h"
+#include "recovery/log_manager.h"
 
 class BufferPoolManager {
    private:
@@ -32,10 +33,11 @@ class BufferPoolManager {
     DiskManager *disk_manager_;
     Replacer *replacer_;    // buffer_pool的置换策略，当前赛题中为LRU置换策略
     std::mutex latch_;      // 用于共享数据结构的并发控制
+    LogManager *log_manager_; // for recovery
 
    public:
-    BufferPoolManager(size_t pool_size, DiskManager *disk_manager)
-        : pool_size_(pool_size), disk_manager_(disk_manager) {
+    BufferPoolManager(size_t pool_size, DiskManager *disk_manager, LogManager *log_manager)
+        : pool_size_(pool_size), disk_manager_(disk_manager), log_manager_(log_manager) {
         // 为buffer pool分配一块连续的内存空间
         pages_ = new Page[pool_size_];
         // 可以被Replacer改变
@@ -77,6 +79,8 @@ class BufferPoolManager {
     void flush_all_pages(int fd);
 
     void delete_all_pages(int fd);
+
+    void update_page_lsn(int fd, int page_no, int page_lsn);
 
    private:
     bool find_victim_page(frame_id_t* frame_id);

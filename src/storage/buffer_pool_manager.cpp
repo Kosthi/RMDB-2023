@@ -26,6 +26,11 @@ bool BufferPoolManager::find_victim_page(frame_id_t* frame_id) {
         if (!replacer_->victim(frame_id)) {
             return false;
         }
+        // 置换出脏页且lsn大于persist时需要刷日志回磁盘
+        auto& page = pages_[*frame_id];
+        if (page.is_dirty_ && page.get_page_lsn() > log_manager_->get_persist_lsn()) {
+            log_manager_->flush_log_to_disk();
+        }
     }
     else {
         // 被淘汰的页面所在的帧由参数frame_id返回
@@ -284,4 +289,22 @@ void BufferPoolManager::delete_all_pages(int fd) {
         pages_[frameId].pin_count_ = 0;
         free_list_.push_back(frameId);
     }
+}
+
+/**
+ * @description: 更新buffer_pool中page对应的最后一条lsn
+ * @param {int} fd 文件句柄
+ */
+void BufferPoolManager::update_page_lsn(int fd, page_id_t page_no, lsn_t page_lsn) {
+    PageId pageId{fd, page_no};
+    auto page = fetch_page(pageId);
+    std::lock_guard<std::mutex> lock(latch_);
+    page->set_page_lsn(page_lsn);
+    // 手动unpin 防止死锁
+    --page->pin_count_;
+    frame_id_t frameId = page_table_[pageId];
+    if (!page->pin_count_) {
+        replacer_->unpin(frameId);
+    }
+    page->is_dirty_ = true;
 }
