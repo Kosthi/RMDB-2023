@@ -324,7 +324,9 @@ void SmManager::create_index(const std::string& tab_name, const std::vector<std:
     }
 
     // 建立索引要读表上的所有记录，所以申请表级读锁
-    context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
+    if (context) {
+        context->lock_mgr_->lock_shared_on_table(context->txn_, fhs_[tab_name]->GetFd());
+    }
 
     std::vector<ColMeta> cols;
     int tot_col_len = 0;
