@@ -21,13 +21,19 @@ void RecoveryManager::analyze() {
     while ((bytes_read = disk_manager_->read_log(log_buffer, LOG_BUFFER_SIZE, log_offset)) > 0) {
         buffer_offset = 0;
         while (buffer_offset < bytes_read) {
+            auto log_size = *reinterpret_cast<const uint32_t*>(log_buffer + buffer_offset + OFFSET_LOG_TOT_LEN);
+            if (buffer_offset + log_size > bytes_read) {
+                break;
+            }
+
             auto log_type = *reinterpret_cast<const LogType*>(log_buffer + buffer_offset);
             switch (log_type) {
                 case LogType::NEWPAGE: {
                     NewpageLogRecord newpageLogRecord;
                     newpageLogRecord.deserialize(log_buffer + buffer_offset);
 
-                    active_txn_.emplace(newpageLogRecord.log_tid_, newpageLogRecord.lsn_);
+                    active_txn_[newpageLogRecord.log_tid_] = newpageLogRecord.lsn_;
+                    // active_txn_.emplace_(newpageLogRecord.log_tid_, newpageLogRecord.lsn_);
                     lsn_mapping_.emplace(newpageLogRecord.lsn_, log_offset + buffer_offset);
 
                     // 因为自增分配策略，如果pageid大于filehdr里的已分配pageid，则说明该页可能未刷盘
@@ -77,7 +83,9 @@ void RecoveryManager::analyze() {
                 case LogType::INSERT: {
                     InsertLogRecord insertLogRecord;
                     insertLogRecord.deserialize(log_buffer + buffer_offset);
-                    active_txn_.emplace(insertLogRecord.log_tid_, insertLogRecord.lsn_);
+
+                    active_txn_[insertLogRecord.log_tid_] = insertLogRecord.lsn_;
+                    // active_txn_.emplace(insertLogRecord.log_tid_, insertLogRecord.lsn_);
                     lsn_mapping_.emplace(insertLogRecord.lsn_, log_offset + buffer_offset);
 
                     auto fm = sm_manager_->fhs_.at(insertLogRecord.table_name_).get();
@@ -96,7 +104,8 @@ void RecoveryManager::analyze() {
                     DeleteLogRecord deleteLogRecord;
                     deleteLogRecord.deserialize(log_buffer + buffer_offset);
 
-                    active_txn_.emplace(deleteLogRecord.log_tid_, deleteLogRecord.lsn_);
+                    active_txn_[deleteLogRecord.log_tid_] = deleteLogRecord.lsn_;
+                    // active_txn_.emplace(deleteLogRecord.log_tid_, deleteLogRecord.lsn_);
                     lsn_mapping_.emplace(deleteLogRecord.lsn_, log_offset + buffer_offset);
 
                     auto fm = sm_manager_->fhs_.at(deleteLogRecord.table_name_).get();
@@ -115,7 +124,8 @@ void RecoveryManager::analyze() {
                     UpdateLogRecord updateLogRecord;
                     updateLogRecord.deserialize(log_buffer + buffer_offset);
 
-                    active_txn_.emplace(updateLogRecord.log_tid_, updateLogRecord.lsn_);
+                    active_txn_[updateLogRecord.log_tid_] = updateLogRecord.lsn_;
+                    // active_txn_.emplace(updateLogRecord.log_tid_, updateLogRecord.lsn_);
                     lsn_mapping_.emplace(updateLogRecord.lsn_, log_offset + buffer_offset);
 
                     auto fm = sm_manager_->fhs_.at(updateLogRecord.table_name_).get();
