@@ -101,8 +101,16 @@ class InsertExecutor : public AbstractExecutor {
             context_->txn_->append_write_record(wr);
             delete[] key;
         }
+        RmRecord rm(rec.size, rec.data);
+
+        // 更新log to log_buffer
+        InsertLogRecord insertLogRecord(context_->txn_->get_transaction_id(), rm, rid_, tab_name_);
+        insertLogRecord.prev_lsn_ = context_->txn_->get_prev_lsn();
+        context_->txn_->set_prev_lsn(context_->log_mgr_->add_log_to_buffer(&insertLogRecord));
+        sm_manager_->get_bpm()->update_page_lsn(fh_->GetFd(), rid_.page_no, context_->txn_->get_prev_lsn());
+
         // 因为插入操作只有插入后才能得到rid信息，所以事务只需要存rid，在事务提交时不用再进行写操作
-        WriteRecord* wr = new WriteRecord(WType::INSERT_TUPLE, tab_name_, rid_);
+        WriteRecord* wr = new WriteRecord(WType::INSERT_TUPLE, tab_name_, rid_, rm);
         context_->txn_->append_write_record(wr);
         return nullptr;
     }
