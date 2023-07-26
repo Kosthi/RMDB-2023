@@ -73,15 +73,32 @@ void DiskManager::read_page(int fd, page_id_t page_no, char *offset, int num_byt
     }
 
     // 读取数据offset
-
     ssize_t bytes_read = read(fd, offset, num_bytes);
     if (bytes_read == -1) {
         throw InternalError("DiskManager::read_page: Error read disk");
     }
 
     if (bytes_read != num_bytes) {
-        throw InternalError("DiskManager::write_page Error");
+        throw InternalError("DiskManager::read_page Error");
     }
+}
+
+bool DiskManager::is_flushed(int fd, page_id_t page_no) {
+    // 计算偏移量 字节单位
+    off_t off_bytes = static_cast<off_t>(page_no) * PAGE_SIZE;
+
+    // 文件指针移动到要读取的位置
+    if (lseek(fd, off_bytes, SEEK_SET) == -1) {
+        return false;
+    }
+
+    // 读取数据offset
+    char data[PAGE_SIZE];
+    ssize_t bytes_read = read(fd, data, PAGE_SIZE);
+    if (bytes_read != PAGE_SIZE) {
+        return false;
+    }
+    return true;
 }
 
 /**
@@ -270,7 +287,7 @@ int DiskManager::read_log(char *log_data, int size, int offset) {
     }
 
     size = std::min(size, file_size - offset);
-    if(size == 0) return 0;
+    if (size == 0) return 0;
     lseek(log_fd_, offset, SEEK_SET);
     ssize_t bytes_read = read(log_fd_, log_data, size);
     assert(bytes_read == size);

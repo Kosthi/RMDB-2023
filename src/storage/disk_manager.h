@@ -36,6 +36,9 @@ class DiskManager {
 
     void read_page(int fd, page_id_t page_no, char *offset, int num_bytes);
 
+    // 判断目标页面是否刷过盘 for recovery
+    bool is_flushed(int fd, page_id_t page_no);
+
     page_id_t allocate_page(int fd);
 
     void deallocate_page(page_id_t page_id);
