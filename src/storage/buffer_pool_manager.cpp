@@ -26,11 +26,6 @@ bool BufferPoolManager::find_victim_page(frame_id_t* frame_id) {
         if (!replacer_->victim(frame_id)) {
             return false;
         }
-        // 置换出脏页且lsn大于persist时需要刷日志回磁盘
-        auto& page = pages_[*frame_id];
-        if (page.is_dirty_ && page.get_page_lsn() > log_manager_->get_persist_lsn()) {
-            log_manager_->flush_log_to_disk();
-        }
     }
     else {
         // 被淘汰的页面所在的帧由参数frame_id返回
@@ -53,6 +48,10 @@ void BufferPoolManager::update_page(Page *page, PageId new_page_id, frame_id_t n
     // 3 重置page的data，更新page id
 
     if (page->is_dirty()) {
+        // 置换出脏页且lsn大于persist时需要刷日志回磁盘
+        if (page->get_page_lsn() > log_manager_->get_persist_lsn()) {
+            log_manager_->flush_log_to_disk();
+        }
         disk_manager_->write_page(page->get_page_id().fd, page->get_page_id().page_no, page->get_data(), PAGE_SIZE);
         page->is_dirty_ = false;
     }
