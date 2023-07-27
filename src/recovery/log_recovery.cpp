@@ -21,7 +21,8 @@ void RecoveryManager::analyze() {
     int bytes_read = 0;
     while ((bytes_read = disk_manager_->read_log(log_buffer, LOG_BUFFER_SIZE, log_offset)) > 0) {
         buffer_offset = 0;
-        while (buffer_offset < bytes_read) {
+        // OFFSET_LOG_TID = OFFSET_LOG_TOT_LEN + sizeof(uint32_t)
+        while (buffer_offset + OFFSET_LOG_TID < bytes_read) {
             auto log_size = *reinterpret_cast<const uint32_t*>(log_buffer + buffer_offset + OFFSET_LOG_TOT_LEN);
             if (buffer_offset + log_size > bytes_read) {
                 break;
