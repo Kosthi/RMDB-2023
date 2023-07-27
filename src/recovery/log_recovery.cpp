@@ -16,7 +16,8 @@ See the Mulan PSL v2 for more details. */
 void RecoveryManager::analyze() {
     uint32_t log_offset = 0;
     uint32_t buffer_offset = 0;
-    char log_buffer[LOG_BUFFER_SIZE];
+    char log_buffer[LOG_BUFFER_SIZE + 1];
+    memset(log_buffer, 0, sizeof log_buffer);
     int bytes_read = 0;
     while ((bytes_read = disk_manager_->read_log(log_buffer, LOG_BUFFER_SIZE, log_offset)) > 0) {
         buffer_offset = 0;
@@ -145,6 +146,7 @@ void RecoveryManager::analyze() {
             }
         }
         log_offset += buffer_offset;
+        memset(log_buffer, 0, sizeof log_buffer);
     }
 }
 
@@ -152,10 +154,11 @@ void RecoveryManager::analyze() {
  * @description: 重做所有未落盘的操作
  */
 void RecoveryManager::redo() {
-    char log_buffer[LOG_BUFFER_SIZE];
+    char log_buffer[LOG_BUFFER_SIZE + 1];
 
     for (auto& lsn : dirty_page_table_) {
         auto log_offset = lsn_mapping_.at(lsn);
+        memset(log_buffer, 0, sizeof log_buffer);
         disk_manager_->read_log(log_buffer, LOG_BUFFER_SIZE, log_offset);
         auto log_type = *reinterpret_cast<const LogType*>(log_buffer);
         switch (log_type) {
@@ -204,11 +207,12 @@ void RecoveryManager::redo() {
  * @description: 回滚未完成的事务
  */
 void RecoveryManager::undo() {
-    char log_buffer[LOG_BUFFER_SIZE];
+    char log_buffer[LOG_BUFFER_SIZE + 1];
 
     for (auto& [txn_id, lsn] : active_txn_) {
         while (lsn != INVALID_LSN) {
             auto log_offset = lsn_mapping_.at(lsn);
+            memset(log_buffer, 0, sizeof log_buffer);
             disk_manager_->read_log(log_buffer, LOG_BUFFER_SIZE, log_offset);
             auto log_type = *reinterpret_cast<const LogType*>(log_buffer);
             switch (log_type) {

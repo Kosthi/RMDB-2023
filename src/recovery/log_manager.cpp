@@ -21,6 +21,7 @@ lsn_t LogManager::add_log_to_buffer(LogRecord* log_record) {
 
     // 将日志记录序列化到缓冲区中
     char serialized_log[log_record->log_tot_len_];
+    memset(serialized_log, 0, sizeof serialized_log);
     log_record->lsn_ = global_lsn_++;
     log_record->serialize(serialized_log);
 
