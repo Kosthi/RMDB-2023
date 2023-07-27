@@ -345,7 +345,7 @@ public:
         memcpy(dest + offset, &update_value_.size, sizeof(int));
         offset += sizeof(int);
         memcpy(dest + offset, old_value_.data, old_value_.size);
-        offset += sizeof(old_value_.data);
+        offset += old_value_.size;
         memcpy(dest + offset, update_value_.data, update_value_.size);
         offset += update_value_.size;
         memcpy(dest + offset, &rid_, sizeof(Rid));
