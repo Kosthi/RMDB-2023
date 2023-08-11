@@ -12,6 +12,7 @@ See the Mulan PSL v2 for more details. */
 #include "execution_defs.h"
 #include "execution_manager.h"
 #include "executor_abstract.h"
+#include "executor_aggregation.h"
 #include "index/ix.h"
 #include "system/sm.h"
 
@@ -23,20 +24,23 @@ class ProjectionExecutor : public AbstractExecutor {
     size_t len_;                                    // 字段总长度
     std::vector<size_t> sel_idxs_;                  // 选中的字段在表中的索引，对应第几个字段
     int limit_;                                     // 限制记录条数
+    bool is_agg_;                                   // 是否是聚合投影
 
    public:
-    ProjectionExecutor(std::unique_ptr<AbstractExecutor> prev, const std::vector<TabCol> &sel_cols, int limit) {
+    ProjectionExecutor(std::unique_ptr<AbstractExecutor> prev, const std::vector<TabCol> &sel_cols, int limit, bool is_agg) {
         prev_ = std::move(prev);
-
+        is_agg_ = is_agg;
         int curr_offset = 0;
-        auto &prev_cols = prev_->cols();
-        for (auto &sel_col : sel_cols) {
-            auto pos = get_col(prev_cols, sel_col);
-            sel_idxs_.push_back(pos - prev_cols.begin());
-            auto col = *pos;
-            col.offset = curr_offset;
-            curr_offset += col.len;
-            cols_.push_back(col);
+        if (!is_agg_) {
+            auto &prev_cols = prev_->cols();
+            for (auto &sel_col: sel_cols) {
+                auto pos = get_col(prev_cols, sel_col);
+                sel_idxs_.push_back(pos - prev_cols.begin());
+                auto col = *pos;
+                col.offset = curr_offset;
+                curr_offset += col.len;
+                cols_.push_back(col);
+            }
         }
         len_ = curr_offset;
         limit_ = limit;
@@ -47,6 +51,7 @@ class ProjectionExecutor : public AbstractExecutor {
     void nextTuple() override { prev_->nextTuple(); }
 
     std::unique_ptr<RmRecord> Next() override {
+        if (is_agg_) return prev_->Next();
         if (limit_ != -1) limit_--;
         // 先得到表中全部字段
         auto& prev_cols = prev_->cols();
@@ -71,7 +76,7 @@ class ProjectionExecutor : public AbstractExecutor {
 
     Rid &rid() override { return _abstract_rid; }
 
-    const std::vector<ColMeta> &cols() const override { return cols_; }
+    const std::vector<ColMeta> &cols() const override { return is_agg_ ? prev_->cols() : cols_; }
 
     bool is_end() const override { return prev_->is_end() ? true : limit_ == 0; }
 };

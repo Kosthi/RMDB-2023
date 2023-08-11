@@ -34,6 +34,8 @@ int main() {
         "help;",
         "",
     };
+    sqls.clear();
+    sqls.push_back("select count(*) from t;");
     for (auto &sql : sqls) {
         std::cout << sql << std::endl;
         YY_BUFFER_STATE buf = yy_scan_string(sql.c_str());

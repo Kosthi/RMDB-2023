@@ -183,9 +183,9 @@ std::shared_ptr<Plan> Planner::physical_optimization(std::shared_ptr<Query> quer
     
     // 其他物理优化
 
-    // 处理orderby
-    plan = generate_sort_plan(query, std::move(plan)); 
-
+    // TODO 处理orderby 聚合sum count不需要order
+    plan = generate_sort_plan(query, std::move(plan));
+    plan = generate_aggregation_plan(query, std::move(plan));
     return plan;
 }
 
@@ -308,13 +308,6 @@ std::shared_ptr<Plan> Planner::generate_sort_plan(std::shared_ptr<Query> query, 
     if(!x->has_sort) {
         return plan;
     }
-    std::vector<std::string> tables = query->tables;
-    std::vector<ColMeta> all_cols;
-    for (auto &sel_tab_name : tables) {
-        // 这里db_不能写成get_db(), 注意要传指针
-        const auto &sel_tab_cols = sm_manager_->db_.get_table(sel_tab_name).cols;
-        all_cols.insert(all_cols.end(), sel_tab_cols.begin(), sel_tab_cols.end());
-    }
 
     std::vector<bool> is_desc;
     std::vector<TabCol> sel_cols;
@@ -327,6 +320,24 @@ std::shared_ptr<Plan> Planner::generate_sort_plan(std::shared_ptr<Query> query, 
     return std::make_shared<SortPlan>(T_Sort, std::move(plan), std::move(sel_cols), std::move(is_desc));
 }
 
+std::shared_ptr<Plan> Planner::generate_aggregation_plan(std::shared_ptr<Query> query, std::shared_ptr<Plan> plan)
+{
+    auto x = std::dynamic_pointer_cast<ast::SelectStmt>(query->parse);
+    if (x->agg_clauses.empty()) {
+        return plan;
+    }
+
+    std::vector<AggType> agg_types;
+    std::vector<TabCol> sel_cols;
+    // Analyze阶段check_column已检查列名存在性和唯一性
+    for (size_t i = 0; i < x->agg_clauses.size(); ++i) {
+        agg_types.emplace_back(x->agg_clauses[i]->type);
+        // query中才有补全的TabCol
+        sel_cols.emplace_back(TabCol{query->cols[i].tab_name, query->cols[i].col_name});
+    }
+
+    return std::make_shared<AggPlan>(T_Aggregation, std::move(plan), std::move(sel_cols), std::move(agg_types));
+}
 
 /**
  * @brief select plan 生成
@@ -341,9 +352,16 @@ std::shared_ptr<Plan> Planner::generate_select_plan(std::shared_ptr<Query> query
 
     //物理优化
     auto sel_cols = query->cols;
+    // 是否使用别名
+    if (query->nick_names.size()) {
+        // 在analyze阶段处理了别名
+        for (size_t i = 0; i < sel_cols.size(); ++i) {
+            sel_cols[i].col_name = query->nick_names[i];
+        }
+    }
     std::shared_ptr<Plan> plannerRoot = physical_optimization(query, context);
-    plannerRoot = std::make_shared<ProjectionPlan>(T_Projection, std::move(plannerRoot), 
-                                                        std::move(sel_cols), query->limit);
+    plannerRoot = std::make_shared<ProjectionPlan>(T_Projection, std::move(plannerRoot),
+                                                   std::move(sel_cols), query->limit, query->nick_names.size());
 
     return plannerRoot;
 }

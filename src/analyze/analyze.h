@@ -28,6 +28,10 @@ class Query{
     std::vector<Condition> conds;
     // 投影列
     std::vector<TabCol> cols;
+    // count(*) 需要得到所有列
+    std::vector<TabCol> all_cols;
+    // 存储 AS 别名
+    std::vector<std::string> nick_names;
     // 表名
     std::vector<std::string> tables;
     // update 的set 值

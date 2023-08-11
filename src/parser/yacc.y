@@ -23,6 +23,8 @@ using namespace ast;
 // keywords
 %token SHOW TABLES CREATE TABLE DROP DESC INSERT INTO VALUES DELETE FROM ASC ORDER BY
 WHERE UPDATE SET SELECT INT CHAR FLOAT BIGINT DATETIME INDEX AND JOIN EXIT HELP TXN_BEGIN TXN_COMMIT TXN_ABORT TXN_ROLLBACK ORDER_BY LIMIT
+SUM MAX MIN COUNT AS
+
 // non-keywords
 %token LEQ NEQ GEQ T_EOF
 
@@ -48,6 +50,9 @@ WHERE UPDATE SET SELECT INT CHAR FLOAT BIGINT DATETIME INDEX AND JOIN EXIT HELP 
 %type <sv_cols> colList selector
 %type <sv_set_clause> setClause
 %type <sv_set_clauses> setClauses
+%type <sv_agg_clause> aggClause
+%type <sv_agg_clauses> aggClauses aggregator
+%type <sv_as_nickname> asClause
 %type <sv_cond> condition
 %type <sv_conds> whereClause optWhereClause
 %type <sv_orderby> order
@@ -153,6 +158,10 @@ dml:
         $$ = std::make_shared<UpdateStmt>($2, $4, $5);
     }
     |   SELECT selector FROM tableList optWhereClause opt_order_clause limit_clause
+    {
+        $$ = std::make_shared<SelectStmt>($2, $4, $5, $6, $7);
+    }
+    |   SELECT aggregator FROM tableList optWhereClause opt_order_clause limit_clause
     {
         $$ = std::make_shared<SelectStmt>($2, $4, $5, $6, $7);
     }
@@ -354,6 +363,58 @@ selector:
         $$ = {};
     }
     |   colList
+    ;
+
+asClause:
+        AS IDENTIFIER
+    {
+        $$ = std::string($2);
+    }
+    |
+    {
+        $$ = {};
+    }
+    ;
+
+aggClause:
+        SUM '(' col ')' asClause
+    {
+        $$ = std::make_shared<AggClause>(T_SUM, $3, $5);
+    }
+    |   MAX '(' col ')' asClause
+    {
+        $$ = std::make_shared<AggClause>(T_MAX, $3, $5);
+    }
+    |   MIN '(' col ')' asClause
+    {
+        $$ = std::make_shared<AggClause>(T_MIN, $3, $5);
+    }
+    |   COUNT '(' '*' ')' asClause
+    {
+        $$ = std::make_shared<AggClause>(T_COUNT, std::make_shared<Col>("", ""), $5);
+    }
+    |   COUNT '(' col ')' asClause
+    {
+        $$ = std::make_shared<AggClause>(T_COUNT, $3, $5);
+    }
+    ;
+
+aggClauses:
+        aggClause
+    {
+        $$ = std::vector<std::shared_ptr<AggClause>>{$1};
+    }
+    |   aggClauses ',' aggClause
+    {
+        $$.push_back($3);
+    }
+    ;
+
+aggregator:
+        aggClauses
+    {
+        $$ = $1;
+    }
     ;
 
 tableList:
