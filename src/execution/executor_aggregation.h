@@ -101,7 +101,7 @@ public:
                         } else if (col_type == TYPE_FLOAT && *(double*)value < *(double*)tmp) {
                             *(double*)value = *(double*)(tmp);
                         } else if (col_type == TYPE_STRING && memcmp(value, tmp, col_len) < 0) {
-                            *value = *tmp;
+                            memcpy(value, tmp, col_len);
                         }
                     }
                     memcpy(rec.data + offset, value, col_len);
@@ -126,7 +126,7 @@ public:
                         } else if (col_type == TYPE_FLOAT && *(double*)value > *(double*)tmp) {
                             *(double*)value = *(double*)(tmp);
                         } else if (col_type == TYPE_STRING && memcmp(value, tmp, col_len) > 0) {
-                            *value = *tmp;
+                            memcpy(value, tmp, col_len);
                         }
                     }
                     memcpy(rec.data + offset, value, col_len);
