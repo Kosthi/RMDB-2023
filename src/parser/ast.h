@@ -17,6 +17,11 @@ See the Mulan PSL v2 for more details. */
 enum JoinType {
     INNER_JOIN, LEFT_JOIN, RIGHT_JOIN, FULL_JOIN
 };
+
+enum AggType {
+    T_SUM, T_MAX, T_MIN, T_COUNT
+};
+
 namespace ast {
 
 enum SvType {
@@ -168,6 +173,14 @@ struct SetClause : public TreeNode {
             col_name(std::move(col_name_)), val(std::move(val_)) {}
 };
 
+struct AggClause : public TreeNode {
+    AggType type;
+    std::shared_ptr<Col> col;
+    std::string nick_name;
+    AggClause(AggType type_, std::shared_ptr<Col> col_, std::string nick_name_) :
+        type(type_), col(std::move(col_)), nick_name(std::move(nick_name_)) {}
+};
+
 struct BinaryExpr : public TreeNode {
     std::shared_ptr<Col> lhs;
     SvCompOp op;
@@ -225,26 +238,37 @@ struct JoinExpr : public TreeNode {
 
 struct SelectStmt : public TreeNode {
     std::vector<std::shared_ptr<Col>> cols;
+    std::vector<std::shared_ptr<AggClause>> agg_clauses;
     std::vector<std::string> tabs;
     std::vector<std::shared_ptr<BinaryExpr>> conds;
     std::vector<std::shared_ptr<JoinExpr>> jointree;
 
-    
     bool has_sort;
     int limit;
     std::vector<std::shared_ptr<OrderBy>> orders;
 
-
+    // for select col
     SelectStmt(std::vector<std::shared_ptr<Col>> cols_,
                std::vector<std::string> tabs_,
                std::vector<std::shared_ptr<BinaryExpr>> conds_,
                std::vector<std::shared_ptr<OrderBy>> orders_,
                int limit_) :
-            cols(std::move(cols_)), tabs(std::move(tabs_)), conds(std::move(conds_)), 
-            orders(std::move(orders_)) {
+            cols(std::move(cols_)), tabs(std::move(tabs_)),
+            conds(std::move(conds_)), orders(std::move(orders_)) {
                 has_sort = (bool)orders.size();
                 limit = limit_;
             }
+    // for select agg()
+    SelectStmt(std::vector<std::shared_ptr<AggClause>> agg_clauses_,
+               std::vector<std::string> tabs_,
+               std::vector<std::shared_ptr<BinaryExpr>> conds_,
+               std::vector<std::shared_ptr<OrderBy>> orders_,
+               int limit_) :
+            agg_clauses(std::move(agg_clauses_)), tabs(std::move(tabs_)),
+            conds(std::move(conds_)), orders(std::move(orders_)) {
+        has_sort = (bool)orders.size();
+        limit = limit_;
+    }
 };
 
 // Semantic value
@@ -255,6 +279,7 @@ struct SemValue {
     long long sv_bigint;
     DateTime sv_datetime;
     int sv_limit;
+    std::string sv_as_nickname;
     OrderByDir sv_orderby_dir;
     std::vector<std::string> sv_strs;
 
@@ -277,6 +302,9 @@ struct SemValue {
 
     std::shared_ptr<SetClause> sv_set_clause;
     std::vector<std::shared_ptr<SetClause>> sv_set_clauses;
+
+    std::shared_ptr<AggClause> sv_agg_clause;
+    std::vector<std::shared_ptr<AggClause>> sv_agg_clauses;
 
     std::shared_ptr<BinaryExpr> sv_cond;
     std::vector<std::shared_ptr<BinaryExpr>> sv_conds;

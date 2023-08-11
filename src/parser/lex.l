@@ -91,6 +91,11 @@ single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."
 "BY" {  return BY;  }
 "ASC" { return ASC; }
 "LIMIT" { return LIMIT; }
+"SUM" { return SUM; }
+"MAX" { return MAX; }
+"MIN" { return MIN; }
+"COUNT" { return COUNT; }
+"AS" { return AS; }
     /* operators */
 ">=" { return GEQ; }
 "<=" { return LEQ; }
