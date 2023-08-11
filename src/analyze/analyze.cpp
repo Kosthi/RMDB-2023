@@ -29,15 +29,54 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
                 throw TableNotFoundError(table_name);
             }
         }
+        // 判断是聚合还是普通sel
+        bool sel_or_agg = x->agg_clauses.empty();
         // 处理target list，再target list中添加上表名，例如 a.id
         for (auto &sv_sel_col : x->cols) {
             TabCol sel_col = {.tab_name = sv_sel_col->tab_name, .col_name = sv_sel_col->col_name};
             query->cols.push_back(sel_col);
         }
-        
+
+        // 是否存在count(*)
+        bool is_exist = false;
+        // 存储投影列和别名
+        for (auto &agg_clause : x->agg_clauses) {
+            // count(*)
+            if (agg_clause->col->col_name.empty() && agg_clause->type == T_COUNT) {
+                is_exist = true;
+            }
+            TabCol agg_col = {.tab_name = agg_clause->col->tab_name, .col_name = agg_clause->col->col_name};
+            query->cols.emplace_back(agg_col);
+            // 别名命名规则？
+            if (agg_clause->nick_name.empty()) {
+                std::string name;
+                auto &type = agg_clause->type;
+                if (type == T_SUM) name += "SUM";
+                else if (type == T_MAX) name += "MAX";
+                else if (type == T_MIN) name += "MIN";
+                else if (type == T_COUNT) name += "COUNT";
+                if (agg_col.tab_name.empty() && agg_col.col_name.empty()) {
+                    name += "(*)";
+                }
+                else if (agg_col.tab_name.empty()) {
+                    name += "(" + agg_col.col_name + ")";
+                } else {
+                    name += "(" + agg_col.tab_name + "." + agg_col.col_name + ")";
+                }
+                query->nick_names.emplace_back(name);
+                continue;
+            }
+            query->nick_names.emplace_back(agg_clause->nick_name);
+        }
         std::vector<ColMeta> all_cols;
         get_all_cols(query->tables, all_cols);
-        if (query->cols.empty()) {
+        if (is_exist) {
+            for (auto &col : all_cols) {
+                TabCol sel_col = {.tab_name = col.tab_name, .col_name = col.name};
+                query->all_cols.push_back(sel_col);
+            }
+        }
+        if (sel_or_agg && query->cols.empty()) {
             // select all columns
             // select *
             for (auto &col : all_cols) {
@@ -109,6 +148,9 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
 
 
 void Analyze::check_column(const std::vector<ColMeta>& all_cols, TabCol& target) {
+    // only for count(*)
+    // 因为两个都为空，则在语法分析时就会报错，因此这里保证必为 count(*)
+    if (target.tab_name.empty() && target.col_name.empty()) return;
     if (target.tab_name.empty()) {
         // Table name not specified, infer table name from column name
         std::string tab_name;

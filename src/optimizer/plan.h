@@ -41,7 +41,8 @@ typedef enum PlanTag{
     T_IndexScan,
     T_NestLoop,
     T_Sort,
-    T_Projection
+    T_Projection,
+    T_Aggregation
 } PlanTag;
 
 // 查询执行计划
@@ -104,17 +105,19 @@ class JoinPlan : public Plan
 class ProjectionPlan : public Plan
 {
     public:
-        ProjectionPlan(PlanTag tag, std::shared_ptr<Plan> subplan, std::vector<TabCol> sel_cols, int limit)
+        ProjectionPlan(PlanTag tag, std::shared_ptr<Plan> subplan, std::vector<TabCol> sel_cols, int limit, bool is_agg)
         {
             Plan::tag = tag;
             subplan_ = std::move(subplan);
             sel_cols_ = std::move(sel_cols);
             limit_ = limit;
+            is_agg_ = is_agg;
         }
         ~ProjectionPlan(){}
         std::shared_ptr<Plan> subplan_;
         std::vector<TabCol> sel_cols_;
         int limit_;
+        bool is_agg_;
 };
 
 class SortPlan : public Plan
@@ -132,6 +135,21 @@ class SortPlan : public Plan
         std::vector<TabCol> sel_cols_;
         std::vector<bool> is_desc_;
         
+};
+
+class AggPlan : public Plan
+{
+    public:
+        AggPlan(PlanTag tag, std::shared_ptr<Plan> subplan, std::vector<TabCol> sel_cols, std::vector<AggType> agg_types) {
+            Plan::tag = tag;
+            subplan_ = std::move(subplan);
+            sel_cols_ = std::move(sel_cols);
+            agg_types_ = std::move(agg_types);
+        }
+        ~AggPlan(){}
+        std::shared_ptr<Plan> subplan_;
+        std::vector<TabCol> sel_cols_;
+        std::vector<AggType> agg_types_;
 };
 
 // dml语句，包括insert; delete; update; select语句　
