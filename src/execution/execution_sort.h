@@ -29,6 +29,7 @@ class SortExecutor : public AbstractExecutor {
     std::vector<int> col_lens;
     size_t levels; // 排序等级
     std::vector<std::pair<int, int>> intervals; // 排序区间
+    size_t len_;
 
    public:
     SortExecutor(std::unique_ptr<AbstractExecutor> prev, std::vector<TabCol> sel_cols, std::vector<bool> is_desc) {
@@ -39,6 +40,7 @@ class SortExecutor : public AbstractExecutor {
         tuple_num = 0;
         // used_tuple.clear();
         levels = 0;
+        len_ = prev_->tupleLen();
     }
 
     void beginTuple() override {
@@ -91,6 +93,8 @@ class SortExecutor : public AbstractExecutor {
     }
 
     Rid &rid() override { return _abstract_rid; }
+
+    size_t tupleLen() const override { return len_; }
 
     const std::vector<ColMeta> &cols() const override { return cols_; }
 
