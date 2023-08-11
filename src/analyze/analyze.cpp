@@ -90,6 +90,37 @@ std::shared_ptr<Query> Analyze::do_analyze(std::shared_ptr<ast::TreeNode> parse)
                 check_column(all_cols, sel_col);  // 列元数据校验
             }
         }
+        // 检查类型 聚合
+        for (size_t i = 0; i < x->agg_clauses.size(); ++i) {
+            switch (x->agg_clauses[i]->type) {
+                case T_SUM: {
+                    for (auto &col : all_cols) {
+                        if (col.tab_name == query->cols[i].tab_name && col.name == query->cols[i].col_name) {
+                            if (col.type == TYPE_INT || col.type == TYPE_FLOAT) {
+                                break;
+                            } else {
+                                throw InternalError("Aggregation Type Error.");
+                            }
+                        }
+                    }
+                    break;
+                }
+                case T_MAX:
+                case T_MIN:
+                case T_COUNT: {
+                    for (auto &col : all_cols) {
+                        if (col.tab_name == query->cols[i].tab_name && col.name == query->cols[i].col_name) {
+                            if (col.type == TYPE_INT || col.type == TYPE_FLOAT || col.type == TYPE_STRING) {
+                                break;
+                            } else {
+                                throw InternalError("Aggregation Type Error.");
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
         //处理where条件
         get_clause(x->conds, query->conds);
         check_clause(query->tables, query->conds);
