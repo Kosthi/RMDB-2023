@@ -366,9 +366,9 @@ selector:
     ;
 
 asClause:
-        AS IDENTIFIER
+        AS colName
     {
-        $$ = std::string($2);
+        $$ = $2;
     }
     |
     {
