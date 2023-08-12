@@ -36,7 +36,7 @@ digit [0-9]
 white_space [ \t]+
 new_line "\r"|"\n"|"\r\n"
 sign "+"|"-"
-identifier {alpha}(_|{alpha}|{digit})*
+identifier (_|{alpha})(_|{alpha}|{digit})*
 /* value_int {sign}?{digit}+ */
 value_int [+-]?[0-9]{1,9}
 value_float {sign}?{digit}+\.({digit}+)?
