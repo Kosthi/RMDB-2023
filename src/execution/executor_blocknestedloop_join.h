@@ -15,7 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include "index/ix.h"
 #include "system/sm.h"
 
-#define JOIN_BUFFER_SIZE 536870912 // 设置为 512MB
+#define JOIN_BUFFER_SIZE 104857600 // 设置为 100MB
 // 未来可以增加的功能
 // 小表左，大表右；大表能全部放下的话，right读完了，不需要再重新读right
 class BlockNestedLoopJoinExecutor : public AbstractExecutor {
