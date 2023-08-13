@@ -71,6 +71,7 @@ public:
                     auto &col_type = sel_cols_[i].type;
                     char* sum = new char[col_len];
                     char* tmp = new char[col_len];
+                    memset(sum, 0, col_len);
                     // 只涉及int, float.
                     for (auto &rec_ : recs_) {
                         memcpy(tmp, rec_.data + sel_cols_[i].offset, col_len);
