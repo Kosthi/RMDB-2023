@@ -153,12 +153,6 @@ public:
 
             RmRecord old_rec(old_records[i].size, old_records[i].data);
 
-            // 更新log to log_buffer
-            UpdateLogRecord updateLogRecord(context_->txn_->get_transaction_id(), old_records[i], new_records[i], rids_[i], tab_name_);
-            updateLogRecord.prev_lsn_ = context_->txn_->get_prev_lsn();
-            context_->txn_->set_prev_lsn(context_->log_mgr_->add_log_to_buffer(&updateLogRecord));
-            sm_manager_->get_bpm()->update_page_lsn(fh_->GetFd(), rids_[i].page_no, context_->txn_->get_prev_lsn());
-
             WriteRecord* wr = new WriteRecord(WType::UPDATE_TUPLE, tab_name_, rids_[i], old_rec);
             context_->txn_->append_write_record(wr);
         }

@@ -64,12 +64,6 @@ class DeleteExecutor : public AbstractExecutor {
             fh_->delete_record(rid, context_);
             RmRecord delete_rec(rm_record->size, rm_record->data);
 
-            // 更新log to log_buffer
-            DeleteLogRecord deleteLogRecord(context_->txn_->get_transaction_id(), delete_rec, rid, tab_name_);
-            deleteLogRecord.prev_lsn_ = context_->txn_->get_prev_lsn();
-            context_->txn_->set_prev_lsn(context_->log_mgr_->add_log_to_buffer(&deleteLogRecord));
-            sm_manager_->get_bpm()->update_page_lsn(fh_->GetFd(), rid.page_no, context_->txn_->get_prev_lsn());
-
             WriteRecord* wr = new WriteRecord(WType::DELETE_TUPLE, tab_name_, rid, delete_rec);
             context_->txn_->append_write_record(wr);
         }
