@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include "defs.h"
 #include "record/rm_defs.h"
 #include "storage/page.h"
+#include <cassert>
 
 /* 标识事务状态 */
 enum class TransactionState { DEFAULT, GROWING, SHRINKING, COMMITTED, ABORTED };

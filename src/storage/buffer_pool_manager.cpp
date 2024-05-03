@@ -49,7 +49,7 @@ void BufferPoolManager::update_page(Page *page, PageId new_page_id, frame_id_t n
 
     if (page->is_dirty()) {
         // 置换出脏页且lsn大于persist时需要刷日志回磁盘
-        if (page->get_page_lsn() > log_manager_->get_persist_lsn()) {
+        if (log_manager_ != nullptr && page->get_page_lsn() > log_manager_->get_persist_lsn()) {
             log_manager_->flush_log_to_disk();
         }
         disk_manager_->write_page(page->get_page_id().fd, page->get_page_id().page_no, page->get_data(), PAGE_SIZE);

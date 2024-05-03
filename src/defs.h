@@ -12,8 +12,6 @@ See the Mulan PSL v2 for more details. */
 
 #include <iostream>
 #include <map>
-#include <sstream>
-#include <iomanip>
 
 // 此处重载了<<操作符，在ColMeta中进行了调用
 template<typename T, typename = typename std::enable_if<std::is_enum<T>::value, T>::type>
@@ -79,52 +77,57 @@ public:
               m_hour(hour_),
               m_minutes(minutes_),
               m_seconds(seconds_) {
-        m_valid = is_valid();
+      m_valid = is_valid();
     }
 
     bool is_valid() const {
-        uint8_t leap = 0;
-        uint8_t months[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-        if (m_year % 400 == 0 || (m_year % 4 == 0 && m_year % 100)) leap = 1;
-        if (m_month == 2 && m_day > months[1] + leap) return false;
-        if (m_month != 2 && m_day > months[m_month - 1]) return false;
-        return true;
+      uint8_t leap = 0;
+      uint8_t months[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+      if (m_year % 400 == 0 || (m_year % 4 == 0 && m_year % 100)) leap = 1;
+      if (m_month == 2 && m_day > months[1] + leap) return false;
+      if (m_month != 2 && m_day > months[m_month - 1]) return false;
+      return true;
     }
 
     bool valid() const { return m_valid; }
 
     std::string to_string() const {
-        if (!valid()) return "";
+      if (!valid()) return "";
 
-        std::stringstream ss;
-        ss.fill('0');
+      std::string result;
+      result.reserve(19); // YYYY-MM-DD HH:MM:SS
 
-        ss << std::setw(4) << year() << "-" << std::setw(2)
-           << static_cast<int>(month()) << "-" << std::setw(2)
-           << static_cast<int>(day());
-        ss << " " << std::setw(2) << static_cast<int>(hour()) << ":"
-           << std::setw(2) << static_cast<int>(minutes()) << ":"
-           << std::setw(2) << static_cast<int>(seconds());
+      result.append(std::to_string(year())).append("-");
+      result.append(month() < 10 ? "0" : "").append(std::to_string(static_cast<int>(month()))).append("-");
+      result.append(day() < 10 ? "0" : "").append(std::to_string(static_cast<int>(day()))).append(" ");
+      result.append(hour() < 10 ? "0" : "").append(std::to_string(static_cast<int>(hour()))).append(":");
+      result.append(minutes() < 10 ? "0" : "").append(std::to_string(static_cast<int>(minutes()))).append(":");
+      result.append(seconds() < 10 ? "0" : "").append(std::to_string(static_cast<int>(seconds())));
 
-        return ss.str();
+      return result;
     }
 
-    friend std::ostream& operator<<(std::ostream& os, const DateTime& dateTime) {
-        os << dateTime.to_string();
-        return os;
+    friend std::ostream &operator<<(std::ostream &os, const DateTime &dateTime) {
+      os << dateTime.to_string();
+      return os;
     }
 
-    int operator==(const DateTime& dateTime) const {
-        std::string dt1 = this->to_string();
-        std::string dt2 = dateTime.to_string();
-        return (dt1 > dt2) ? 1 : (dt1 < dt2 ? -1 : 0);
+    int operator==(const DateTime &dateTime) const {
+      std::string dt1 = this->to_string();
+      std::string dt2 = dateTime.to_string();
+      return (dt1 > dt2) ? 1 : (dt1 < dt2 ? -1 : 0);
     }
 
     uint16_t year() const { return m_year; }
+
     uint8_t month() const { return m_month; }
+
     uint8_t day() const { return m_day; }
+
     uint8_t hour() const { return m_hour; }
+
     uint8_t minutes() const { return m_minutes; }
+
     uint8_t seconds() const { return m_seconds; }
 
 private:

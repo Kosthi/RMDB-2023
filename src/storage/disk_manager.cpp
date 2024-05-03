@@ -159,7 +159,7 @@ void DiskManager::create_file(const std::string &path) {
         throw FileExistsError("DiskManager::create_file: File already exists");
     }
 
-    int fd = open(path.c_str(), O_CREAT | O_EXCL);
+    int fd = open(path.c_str(), O_CREAT | O_EXCL, 0666);
     if (fd == -1) {
         throw FileNotOpenError(fd);
     }
